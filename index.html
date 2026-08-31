@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>7-Day Meal Tracker (v1.4 - CSV Export)</title>
+  <title>7-Day Meal Tracker (v1.5 - Auth & Access Control)</title>
   <style>
     :root {
       --bg-color: #f8fafc;
@@ -44,16 +44,20 @@
 
     header {
       margin-bottom: 20px;
-      text-align: center;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 12px;
     }
 
-    header h1 {
+    .header-title h1 {
       font-size: 1.5rem;
       font-weight: 700;
       color: var(--text-main);
     }
 
-    header p {
+    .header-title p {
       color: var(--text-muted);
       font-size: 0.875rem;
     }
@@ -66,6 +70,17 @@
       border-radius: 12px;
       vertical-align: middle;
       margin-left: 6px;
+    }
+
+    .auth-bar {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .user-status {
+      font-size: 0.85rem;
+      color: var(--text-muted);
     }
 
     .card {
@@ -114,7 +129,7 @@
       padding: 10px 12px;
       border: 1px solid var(--border);
       border-radius: 6px;
-      font-size: 16px; /* Prevents auto-zoom on iOS */
+      font-size: 16px;
       color: var(--text-main);
       background-color: #fff;
       outline: none;
@@ -148,35 +163,12 @@
       transition: background-color 0.2s;
     }
 
-    .btn-primary {
-      background-color: var(--primary);
-      color: #ffffff;
-      flex: 1;
-    }
-
-    .btn-primary:hover {
-      background-color: var(--primary-hover);
-    }
-
-    .btn-secondary {
-      background-color: var(--accent);
-      color: var(--text-main);
-      border: 1px solid var(--border);
-    }
-
-    .btn-secondary:hover {
-      background-color: #e2e8f0;
-    }
-
-    .btn-export {
-      background-color: var(--success);
-      color: #ffffff;
-      white-space: nowrap;
-    }
-
-    .btn-export:hover {
-      background-color: var(--success-hover);
-    }
+    .btn-primary { background-color: var(--primary); color: #ffffff; }
+    .btn-primary:hover { background-color: var(--primary-hover); }
+    .btn-secondary { background-color: var(--accent); color: var(--text-main); border: 1px solid var(--border); }
+    .btn-secondary:hover { background-color: #e2e8f0; }
+    .btn-export { background-color: var(--success); color: #ffffff; white-space: nowrap; }
+    .btn-export:hover { background-color: var(--success-hover); }
 
     .controls-bar {
       display: flex;
@@ -207,11 +199,8 @@
       padding: 8px 10px;
     }
 
-    .table-container {
-      width: 100%;
-    }
+    .table-container { width: 100%; }
 
-    /* Desktop Table Styling */
     table {
       width: 100%;
       border-collapse: collapse;
@@ -231,22 +220,9 @@
       white-space: nowrap;
     }
 
-    th .sort-icon {
-      margin-left: 4px;
-      font-size: 0.75rem;
-      color: var(--text-muted);
-    }
-
-    td {
-      padding: 10px 12px;
-      border-bottom: 1px solid var(--border);
-      color: var(--text-main);
-    }
-
-    .notes-cell {
-      color: var(--text-muted);
-      font-size: 0.85rem;
-    }
+    th .sort-icon { margin-left: 4px; font-size: 0.75rem; color: var(--text-muted); }
+    td { padding: 10px 12px; border-bottom: 1px solid var(--border); color: var(--text-main); }
+    .notes-cell { color: var(--text-muted); font-size: 0.85rem; }
 
     .category-badge {
       display: inline-block;
@@ -263,50 +239,56 @@
     .cat-dessert   { background: #fce7f3; color: #9d174d; }
     .cat-snacks    { background: #dcfce7; color: #166534; }
 
-    .empty-state {
-      text-align: center;
-      padding: 24px 16px;
-      color: var(--text-muted);
-    }
-
-    .btn-danger-sm, .btn-edit-sm {
-      padding: 6px 10px;
-      font-size: 0.8rem;
-    }
-
+    .empty-state { text-align: center; padding: 24px 16px; color: var(--text-muted); }
+    .btn-danger-sm, .btn-edit-sm { padding: 6px 10px; font-size: 0.8rem; }
     .btn-danger-sm { background-color: #fef2f2; color: var(--danger); }
     .btn-edit-sm { background-color: #eff6ff; color: var(--primary); }
 
-    /* MOBILE RESPONSIVE STYLES */
+    /* Modal Styling */
+    .modal {
+      display: none;
+      position: fixed;
+      z-index: 1000;
+      left: 0;
+      top: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(15, 23, 42, 0.5);
+      align-items: center;
+      justify-content: center;
+    }
+
+    .modal-content {
+      background: #ffffff;
+      padding: 24px;
+      border-radius: var(--radius);
+      width: 90%;
+      max-width: 400px;
+      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1);
+    }
+
+    .modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 16px;
+    }
+
+    .modal-close {
+      font-size: 1.25rem;
+      cursor: pointer;
+      color: var(--text-muted);
+    }
+
+    /* Mobile Responsive */
     @media (max-width: 640px) {
-      .form-grid {
-        grid-template-columns: 1fr;
-      }
-
-      .btn-group {
-        flex-direction: column;
-      }
-
-      .btn-secondary, .btn-export {
-        width: 100%;
-      }
-
-      .controls-bar {
-        flex-direction: column;
-        align-items: stretch;
-      }
-
-      /* Hide Table Headers on Mobile */
-      table thead {
-        display: none;
-      }
-
-      /* Transform Table Rows into Cards */
-      table, tbody, tr, td {
-        display: block;
-        width: 100%;
-      }
-
+      header { flex-direction: column; align-items: flex-start; }
+      .form-grid { grid-template-columns: 1fr; }
+      .btn-group { flex-direction: column; }
+      .btn-secondary, .btn-export { width: 100%; }
+      .controls-bar { flex-direction: column; align-items: stretch; }
+      table thead { display: none; }
+      table, tbody, tr, td { display: block; width: 100%; }
       tr {
         background: #ffffff;
         border: 1px solid var(--border);
@@ -315,41 +297,11 @@
         padding: 12px;
         box-shadow: 0 1px 3px rgba(0,0,0,0.02);
       }
-
-      td {
-        border-bottom: none;
-        padding: 4px 0;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        font-size: 0.875rem;
-      }
-
-      td::before {
-        content: attr(data-label);
-        font-weight: 600;
-        color: var(--text-muted);
-        font-size: 0.75rem;
-        text-transform: uppercase;
-      }
-
-      td.actions-td {
-        margin-top: 8px;
-        padding-top: 8px;
-        border-top: 1px solid var(--border);
-        display: flex;
-        gap: 8px;
-      }
-
-      td.actions-td::before {
-        display: none;
-      }
-
-      .btn-edit-sm, .btn-danger-sm {
-        flex: 1;
-        text-align: center;
-        padding: 8px 0;
-      }
+      td { border-bottom: none; padding: 4px 0; display: flex; justify-content: space-between; align-items: center; font-size: 0.875rem; }
+      td::before { content: attr(data-label); font-weight: 600; color: var(--text-muted); font-size: 0.75rem; text-transform: uppercase; }
+      td.actions-td { margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--border); display: flex; gap: 8px; }
+      td.actions-td::before { display: none; }
+      .btn-edit-sm, .btn-danger-sm { flex: 1; text-align: center; padding: 8px 0; }
     }
   </style>
 </head>
@@ -357,12 +309,21 @@
 
   <div class="container">
     <header>
-      <h1>7-Day Meal Tracker <span class="version-badge">v1.4</span></h1>
-      <p>Log and organize your meals on desktop & mobile</p>
+      <div class="header-title">
+        <h1>7-Day Meal Tracker <span class="version-badge">v1.5</span></h1>
+        <p>Log and organize your meals on desktop & mobile</p>
+      </div>
+
+      <div class="auth-bar">
+        <span class="user-status" id="userStatus">Read-Only Mode</span>
+        <button id="openAuthBtn" class="btn-secondary">Log In</button>
+        <button id="createUserBtn" class="btn-secondary" style="display: none;">Create User</button>
+        <button id="logoutBtn" class="btn-secondary" style="display: none;">Sign Out</button>
+      </div>
     </header>
 
-    <!-- Entry / Edit Form -->
-    <div class="card">
+    <!-- Entry / Edit Form (Hidden by default in Read-Only Mode) -->
+    <div class="card" id="formCard" style="display: none;">
       <div class="card-title" id="formTitle">Log New Meal</div>
       <form id="mealForm">
         <input type="hidden" id="editId" value="" />
@@ -449,7 +410,7 @@
               <th onclick="sortTable('quantity')">Quantity <span class="sort-icon" id="sort-quantity"></span></th>
               <th style="cursor: default;">Unit</th>
               <th style="cursor: default;">Notes / Comments</th>
-              <th style="cursor: default; text-align: right;">Actions</th>
+              <th id="actionsHeader" style="cursor: default; text-align: right; display: none;">Actions</th>
             </tr>
           </thead>
           <tbody id="mealTableBody">
@@ -457,6 +418,27 @@
           </tbody>
         </table>
       </div>
+    </div>
+  </div>
+
+  <!-- Auth Modal -->
+  <div class="modal" id="authModal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 id="modalTitle">Account Login</h3>
+        <span class="modal-close" id="modalClose">&times;</span>
+      </div>
+      <form id="authForm">
+        <div class="form-group" style="margin-bottom: 12px;">
+          <label for="authEmail">Email</label>
+          <input type="email" id="authEmail" placeholder="user@example.com" required />
+        </div>
+        <div class="form-group" style="margin-bottom: 16px;">
+          <label for="authPassword">Password</label>
+          <input type="password" id="authPassword" placeholder="••••••••" required />
+        </div>
+        <button type="submit" id="authSubmitBtn" class="btn-primary" style="width: 100%;">Sign In</button>
+      </form>
     </div>
   </div>
 
@@ -472,6 +454,13 @@
       doc, 
       onSnapshot 
     } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+    import { 
+      getAuth, 
+      signInWithEmailAndPassword, 
+      createUserWithEmailAndPassword, 
+      signOut, 
+      onAuthStateChanged 
+    } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 
     // -------------------------------------------------------------
     // FIREBASE CONFIGURATION
@@ -488,11 +477,42 @@
 
     const app = initializeApp(firebaseConfig);
     const db = getFirestore(app);
+    const auth = getAuth(app);
     const mealsCollection = collection(db, "meals");
 
     let meals = [];
     let sortColumn = 'dateTime';
     let sortAscending = false;
+    let currentUser = null;
+    let authMode = 'login'; // 'login' or 'create'
+
+    // Auth State Listener
+    onAuthStateChanged(auth, (user) => {
+      currentUser = user;
+      const userStatus = document.getElementById('userStatus');
+      const openAuthBtn = document.getElementById('openAuthBtn');
+      const createUserBtn = document.getElementById('createUserBtn');
+      const logoutBtn = document.getElementById('logoutBtn');
+      const formCard = document.getElementById('formCard');
+      const actionsHeader = document.getElementById('actionsHeader');
+
+      if (user) {
+        userStatus.textContent = `Logged in: ${user.email}`;
+        openAuthBtn.style.display = 'none';
+        createUserBtn.style.display = 'inline-block';
+        logoutBtn.style.display = 'inline-block';
+        formCard.style.display = 'block';
+        actionsHeader.style.display = 'table-cell';
+      } else {
+        userStatus.textContent = 'Read-Only Mode';
+        openAuthBtn.style.display = 'inline-block';
+        createUserBtn.style.display = 'none';
+        logoutBtn.style.display = 'none';
+        formCard.style.display = 'none';
+        actionsHeader.style.display = 'none';
+      }
+      renderTable();
+    });
 
     function setCurrentDateTimeInput() {
       const now = new Date();
@@ -537,6 +557,7 @@
     function renderTable() {
       const tbody = document.getElementById('mealTableBody');
       const filteredMeals = getFilteredAndSortedMeals();
+      const isEditable = !!currentUser;
 
       ['dateTime', 'category', 'itemName', 'quantity'].forEach(col => {
         const icon = document.getElementById(`sort-${col}`);
@@ -545,8 +566,10 @@
         }
       });
 
+      const colSpanCount = isEditable ? 7 : 6;
+
       if (filteredMeals.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="7" class="empty-state">No meal records found. Log a meal above!</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="${colSpanCount}" class="empty-state">No meal records found.</td></tr>`;
         return;
       }
 
@@ -568,10 +591,12 @@
             <td data-label="Quantity">${m.quantity !== '' && m.quantity !== null && m.quantity !== undefined ? m.quantity : '-'}</td>
             <td data-label="Unit">${m.unit ? escapeHtml(m.unit) : '-'}</td>
             <td data-label="Notes" class="notes-cell">${m.notes ? escapeHtml(m.notes) : '-'}</td>
-            <td class="actions-td">
-              <button class="btn-edit-sm" onclick="window.editMeal('${m.id}')">Edit</button>
-              <button class="btn-danger-sm" onclick="window.deleteMeal('${m.id}')">Delete</button>
-            </td>
+            ${isEditable ? `
+              <td class="actions-td">
+                <button class="btn-edit-sm" onclick="window.editMeal('${m.id}')">Edit</button>
+                <button class="btn-danger-sm" onclick="window.deleteMeal('${m.id}')">Delete</button>
+              </td>
+            ` : ''}
           </tr>
         `;
       }).join('');
@@ -589,6 +614,7 @@
 
     document.getElementById('mealForm').addEventListener('submit', async function(e) {
       e.preventDefault();
+      if (!currentUser) return alert("You must be logged in to modify data.");
 
       const editId = document.getElementById('editId').value;
       const dateTime = document.getElementById('dateTime').value;
@@ -612,6 +638,7 @@
     });
 
     window.editMeal = function(id) {
+      if (!currentUser) return;
       const meal = meals.find(m => m.id === id);
       if (!meal) return;
 
@@ -631,6 +658,7 @@
     };
 
     window.deleteMeal = async function(id) {
+      if (!currentUser) return;
       if (confirm('Are you sure you want to delete this meal entry?')) {
         try {
           await deleteDoc(doc(db, "meals", id));
@@ -640,7 +668,51 @@
       }
     };
 
-    // Export to CSV Functionality
+    // Modal & Auth Handling
+    const authModal = document.getElementById('authModal');
+    
+    document.getElementById('openAuthBtn').addEventListener('click', () => {
+      authMode = 'login';
+      document.getElementById('modalTitle').textContent = 'Account Login';
+      document.getElementById('authSubmitBtn').textContent = 'Sign In';
+      authModal.style.display = 'flex';
+    });
+
+    document.getElementById('createUserBtn').addEventListener('click', () => {
+      authMode = 'create';
+      document.getElementById('modalTitle').textContent = 'Create New User';
+      document.getElementById('authSubmitBtn').textContent = 'Create Account';
+      authModal.style.display = 'flex';
+    });
+
+    document.getElementById('modalClose').addEventListener('click', () => {
+      authModal.style.display = 'none';
+    });
+
+    document.getElementById('logoutBtn').addEventListener('click', () => {
+      signOut(auth);
+    });
+
+    document.getElementById('authForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const email = document.getElementById('authEmail').value.trim();
+      const password = document.getElementById('authPassword').value;
+
+      try {
+        if (authMode === 'login') {
+          await signInWithEmailAndPassword(auth, email, password);
+        } else {
+          await createUserWithEmailAndPassword(auth, email, password);
+          alert(`User ${email} created successfully.`);
+        }
+        authModal.style.display = 'none';
+        document.getElementById('authForm').reset();
+      } catch (err) {
+        alert("Authentication Error: " + err.message);
+      }
+    });
+
+    // CSV Export
     document.getElementById('exportCsvBtn').addEventListener('click', function() {
       const currentData = getFilteredAndSortedMeals();
       if (currentData.length === 0) {
@@ -665,16 +737,8 @@
       const link = document.createElement("a");
       link.setAttribute("href", encodedUri);
 
-      // Format filename with current date and time
       const now = new Date();
-      const year = now.getFullYear();
-      const month = String(now.getMonth() + 1).padStart(2, '0');
-      const day = String(now.getDate()).padStart(2, '0');
-      const hours = String(now.getHours()).padStart(2, '0');
-      const minutes = String(now.getMinutes()).padStart(2, '0');
-      const seconds = String(now.getSeconds()).padStart(2, '0');
-
-      const fileName = `meal-tracker-${year}-${month}-${day}_${hours}-${minutes}-${seconds}.csv`;
+      const fileName = `meal-tracker-${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}_${String(now.getHours()).padStart(2,'0')}-${String(now.getMinutes()).padStart(2,'0')}-${String(now.getSeconds()).padStart(2,'0')}.csv`;
       
       link.setAttribute("download", fileName);
       document.body.appendChild(link);
