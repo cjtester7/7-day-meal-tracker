@@ -2,8 +2,8 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>7-Day Meal Tracker (v1.2 - Notes & Comments)</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>7-Day Meal Tracker (v1.4 - CSV Export)</title>
   <style>
     :root {
       --bg-color: #f8fafc;
@@ -12,8 +12,9 @@
       --text-muted: #64748b;
       --primary: #2563eb;
       --primary-hover: #1d4ed8;
+      --success: #16a34a;
+      --success-hover: #15803d;
       --danger: #ef4444;
-      --danger-hover: #dc2626;
       --accent: #f1f5f9;
       --border: #e2e8f0;
       --radius: 10px;
@@ -31,28 +32,30 @@
       background-color: var(--bg-color);
       color: var(--text-main);
       line-height: 1.5;
-      padding: 24px 16px;
+      padding: 16px 12px;
+      overflow-x: hidden;
     }
 
     .container {
       max-width: 1100px;
       margin: 0 auto;
+      width: 100%;
     }
 
     header {
-      margin-bottom: 24px;
+      margin-bottom: 20px;
       text-align: center;
     }
 
     header h1 {
-      font-size: 1.875rem;
+      font-size: 1.5rem;
       font-weight: 700;
       color: var(--text-main);
     }
 
     header p {
       color: var(--text-muted);
-      font-size: 0.95rem;
+      font-size: 0.875rem;
     }
 
     .version-badge {
@@ -62,36 +65,36 @@
       padding: 2px 8px;
       border-radius: 12px;
       vertical-align: middle;
-      margin-left: 8px;
+      margin-left: 6px;
     }
 
     .card {
       background: var(--card-bg);
       border-radius: var(--radius);
-      padding: 24px;
+      padding: 16px;
       box-shadow: var(--shadow);
       border: 1px solid var(--border);
-      margin-bottom: 24px;
+      margin-bottom: 20px;
+      width: 100%;
     }
 
     .card-title {
-      font-size: 1.1rem;
+      font-size: 1rem;
       font-weight: 600;
-      margin-bottom: 16px;
+      margin-bottom: 14px;
       color: var(--text-main);
     }
 
     .form-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-      gap: 16px;
-      margin-bottom: 16px;
+      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+      gap: 12px;
     }
 
     .form-group {
       display: flex;
       flex-direction: column;
-      gap: 6px;
+      gap: 4px;
     }
 
     .form-group-full {
@@ -99,7 +102,7 @@
     }
 
     label {
-      font-size: 0.85rem;
+      font-size: 0.75rem;
       font-weight: 600;
       color: var(--text-muted);
       text-transform: uppercase;
@@ -111,7 +114,7 @@
       padding: 10px 12px;
       border: 1px solid var(--border);
       border-radius: 6px;
-      font-size: 0.95rem;
+      font-size: 16px; /* Prevents auto-zoom on iOS */
       color: var(--text-main);
       background-color: #fff;
       outline: none;
@@ -130,14 +133,14 @@
 
     .btn-group {
       display: flex;
-      gap: 12px;
+      gap: 10px;
       justify-content: flex-end;
-      margin-top: 16px;
+      margin-top: 14px;
     }
 
     button {
-      padding: 10px 20px;
-      font-size: 0.95rem;
+      padding: 10px 16px;
+      font-size: 0.9rem;
       font-weight: 600;
       border-radius: 6px;
       border: none;
@@ -148,6 +151,7 @@
     .btn-primary {
       background-color: var(--primary);
       color: #ffffff;
+      flex: 1;
     }
 
     .btn-primary:hover {
@@ -164,28 +168,14 @@
       background-color: #e2e8f0;
     }
 
-    .btn-danger-sm {
-      background-color: transparent;
-      color: var(--danger);
-      padding: 6px 10px;
-      font-size: 0.85rem;
+    .btn-export {
+      background-color: var(--success);
+      color: #ffffff;
+      white-space: nowrap;
     }
 
-    .btn-danger-sm:hover {
-      background-color: #fef2f2;
-      border-radius: 4px;
-    }
-
-    .btn-edit-sm {
-      background-color: transparent;
-      color: var(--primary);
-      padding: 6px 10px;
-      font-size: 0.85rem;
-    }
-
-    .btn-edit-sm:hover {
-      background-color: #eff6ff;
-      border-radius: 4px;
+    .btn-export:hover {
+      background-color: var(--success-hover);
     }
 
     .controls-bar {
@@ -201,30 +191,32 @@
       display: flex;
       align-items: center;
       gap: 8px;
+      flex: 1;
+      min-width: 200px;
     }
 
     .filter-group label {
       text-transform: none;
       letter-spacing: normal;
-      font-size: 0.9rem;
+      font-size: 0.85rem;
+      white-space: nowrap;
     }
 
     .filter-group select {
-      width: auto;
-      padding: 6px 10px;
+      flex: 1;
+      padding: 8px 10px;
     }
 
     .table-container {
-      overflow-x: auto;
-      border-radius: var(--radius);
-      border: 1px solid var(--border);
+      width: 100%;
     }
 
+    /* Desktop Table Styling */
     table {
       width: 100%;
       border-collapse: collapse;
       text-align: left;
-      font-size: 0.95rem;
+      font-size: 0.9rem;
       background: var(--card-bg);
     }
 
@@ -232,15 +224,11 @@
       background-color: var(--accent);
       color: var(--text-main);
       font-weight: 600;
-      padding: 12px 16px;
+      padding: 10px 12px;
       cursor: pointer;
       user-select: none;
       border-bottom: 1px solid var(--border);
       white-space: nowrap;
-    }
-
-    th:hover {
-      background-color: #e2e8f0;
     }
 
     th .sort-icon {
@@ -250,33 +238,21 @@
     }
 
     td {
-      padding: 12px 16px;
+      padding: 10px 12px;
       border-bottom: 1px solid var(--border);
       color: var(--text-main);
     }
 
-    tr:last-child td {
-      border-bottom: none;
-    }
-
-    tr:hover td {
-      background-color: #f8fafc;
-    }
-
     .notes-cell {
       color: var(--text-muted);
-      font-size: 0.875rem;
-      max-width: 200px;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
+      font-size: 0.85rem;
     }
 
     .category-badge {
       display: inline-block;
       padding: 2px 8px;
       border-radius: 12px;
-      font-size: 0.8rem;
+      font-size: 0.75rem;
       font-weight: 600;
       text-transform: capitalize;
     }
@@ -289,17 +265,90 @@
 
     .empty-state {
       text-align: center;
-      padding: 32px 16px;
+      padding: 24px 16px;
       color: var(--text-muted);
     }
 
+    .btn-danger-sm, .btn-edit-sm {
+      padding: 6px 10px;
+      font-size: 0.8rem;
+    }
+
+    .btn-danger-sm { background-color: #fef2f2; color: var(--danger); }
+    .btn-edit-sm { background-color: #eff6ff; color: var(--primary); }
+
+    /* MOBILE RESPONSIVE STYLES */
     @media (max-width: 640px) {
       .form-grid {
         grid-template-columns: 1fr;
       }
+
+      .btn-group {
+        flex-direction: column;
+      }
+
+      .btn-secondary, .btn-export {
+        width: 100%;
+      }
+
       .controls-bar {
         flex-direction: column;
         align-items: stretch;
+      }
+
+      /* Hide Table Headers on Mobile */
+      table thead {
+        display: none;
+      }
+
+      /* Transform Table Rows into Cards */
+      table, tbody, tr, td {
+        display: block;
+        width: 100%;
+      }
+
+      tr {
+        background: #ffffff;
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        margin-bottom: 12px;
+        padding: 12px;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.02);
+      }
+
+      td {
+        border-bottom: none;
+        padding: 4px 0;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        font-size: 0.875rem;
+      }
+
+      td::before {
+        content: attr(data-label);
+        font-weight: 600;
+        color: var(--text-muted);
+        font-size: 0.75rem;
+        text-transform: uppercase;
+      }
+
+      td.actions-td {
+        margin-top: 8px;
+        padding-top: 8px;
+        border-top: 1px solid var(--border);
+        display: flex;
+        gap: 8px;
+      }
+
+      td.actions-td::before {
+        display: none;
+      }
+
+      .btn-edit-sm, .btn-danger-sm {
+        flex: 1;
+        text-align: center;
+        padding: 8px 0;
       }
     }
   </style>
@@ -308,10 +357,11 @@
 
   <div class="container">
     <header>
-      <h1>7-Day Meal Tracker <span class="version-badge">v1.2</span></h1>
-      <p>Log, edit, and organize your weekly meals with Firebase Firestore</p>
+      <h1>7-Day Meal Tracker <span class="version-badge">v1.4</span></h1>
+      <p>Log and organize your meals on desktop & mobile</p>
     </header>
 
+    <!-- Entry / Edit Form -->
     <div class="card">
       <div class="card-title" id="formTitle">Log New Meal</div>
       <form id="mealForm">
@@ -361,7 +411,7 @@
 
           <div class="form-group form-group-full">
             <label for="notes">Notes / Comments</label>
-            <input type="text" id="notes" placeholder="e.g. Organic, whole wheat, added sugar, brand name..." />
+            <input type="text" id="notes" placeholder="e.g. Organic, whole wheat, brand..." />
           </div>
         </div>
 
@@ -372,12 +422,11 @@
       </form>
     </div>
 
+    <!-- Data Table & Filter Controls -->
     <div class="card">
       <div class="controls-bar">
-        <div class="card-title" style="margin-bottom: 0;">Meal History</div>
-        
         <div class="filter-group">
-          <label for="filterCategory">Filter by Category:</label>
+          <label for="filterCategory">Filter Category:</label>
           <select id="filterCategory">
             <option value="All">All Categories</option>
             <option value="Breakfast">Breakfast</option>
@@ -387,6 +436,7 @@
             <option value="Snacks">Snacks</option>
           </select>
         </div>
+        <button id="exportCsvBtn" class="btn-export">Export to CSV</button>
       </div>
 
       <div class="table-container">
@@ -403,12 +453,14 @@
             </tr>
           </thead>
           <tbody id="mealTableBody">
-            </tbody>
+            <!-- Dynamic meal rows rendered from Firestore -->
+          </tbody>
         </table>
       </div>
     </div>
   </div>
 
+  <!-- Firebase SDK Modules -->
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
     import { 
@@ -422,7 +474,7 @@
     } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
     // -------------------------------------------------------------
-    // 1. FIREBASE CONFIGURATION (Replace with your actual keys)
+    // FIREBASE CONFIGURATION
     // -------------------------------------------------------------
     const firebaseConfig = {
       apiKey: "AIzaSyDB-4V2EeH6PpnA5A0eF1gWg4byqWZJaS4",
@@ -434,26 +486,20 @@
       measurementId: "G-WG281FT3VQ"
     };
 
-    // Initialize Firebase & Firestore
     const app = initializeApp(firebaseConfig);
     const db = getFirestore(app);
     const mealsCollection = collection(db, "meals");
 
-    // Local State
     let meals = [];
     let sortColumn = 'dateTime';
     let sortAscending = false;
 
-    // Helper: Set default DateTime input to current time
     function setCurrentDateTimeInput() {
       const now = new Date();
       now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
       document.getElementById('dateTime').value = now.toISOString().slice(0, 16);
     }
 
-    // -------------------------------------------------------------
-    // 2. REAL-TIME FIRESTORE LISTENER
-    // -------------------------------------------------------------
     onSnapshot(mealsCollection, (snapshot) => {
       meals = snapshot.docs.map(doc => ({
         id: doc.id,
@@ -464,13 +510,8 @@
       console.error("Firestore error:", error);
     });
 
-    // -------------------------------------------------------------
-    // 3. TABLE RENDERING & SORTING
-    // -------------------------------------------------------------
-    function renderTable() {
-      const tbody = document.getElementById('mealTableBody');
+    function getFilteredAndSortedMeals() {
       const filterCategory = document.getElementById('filterCategory').value;
-
       let filteredMeals = meals.filter(m => filterCategory === 'All' || m.category === filterCategory);
 
       filteredMeals.sort((a, b) => {
@@ -490,6 +531,13 @@
         return 0;
       });
 
+      return filteredMeals;
+    }
+
+    function renderTable() {
+      const tbody = document.getElementById('mealTableBody');
+      const filteredMeals = getFilteredAndSortedMeals();
+
       ['dateTime', 'category', 'itemName', 'quantity'].forEach(col => {
         const icon = document.getElementById(`sort-${col}`);
         if (icon) {
@@ -498,7 +546,7 @@
       });
 
       if (filteredMeals.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="7" class="empty-state">No meal records found. Log a meal using the form above!</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="7" class="empty-state">No meal records found. Log a meal above!</td></tr>`;
         return;
       }
 
@@ -506,7 +554,6 @@
         const formattedDate = new Date(m.dateTime).toLocaleString([], {
           month: 'short',
           day: 'numeric',
-          year: 'numeric',
           hour: '2-digit',
           minute: '2-digit'
         });
@@ -515,13 +562,13 @@
 
         return `
           <tr>
-            <td>${formattedDate}</td>
-            <td><span class="category-badge ${badgeClass}">${m.category}</span></td>
-            <td><strong>${escapeHtml(m.itemName)}</strong></td>
-            <td>${m.quantity !== '' && m.quantity !== null && m.quantity !== undefined ? m.quantity : '-'}</td>
-            <td>${m.unit ? escapeHtml(m.unit) : '-'}</td>
-            <td class="notes-cell" title="${escapeHtml(m.notes || '')}">${m.notes ? escapeHtml(m.notes) : '-'}</td>
-            <td style="text-align: right;">
+            <td data-label="Date & Time">${formattedDate}</td>
+            <td data-label="Category"><span class="category-badge ${badgeClass}">${m.category}</span></td>
+            <td data-label="Item Name"><strong>${escapeHtml(m.itemName)}</strong></td>
+            <td data-label="Quantity">${m.quantity !== '' && m.quantity !== null && m.quantity !== undefined ? m.quantity : '-'}</td>
+            <td data-label="Unit">${m.unit ? escapeHtml(m.unit) : '-'}</td>
+            <td data-label="Notes" class="notes-cell">${m.notes ? escapeHtml(m.notes) : '-'}</td>
+            <td class="actions-td">
               <button class="btn-edit-sm" onclick="window.editMeal('${m.id}')">Edit</button>
               <button class="btn-danger-sm" onclick="window.deleteMeal('${m.id}')">Delete</button>
             </td>
@@ -540,9 +587,6 @@
       renderTable();
     };
 
-    // -------------------------------------------------------------
-    // 4. CRUD OPERATIONS WITH FIRESTORE
-    // -------------------------------------------------------------
     document.getElementById('mealForm').addEventListener('submit', async function(e) {
       e.preventDefault();
 
@@ -581,7 +625,7 @@
 
       document.getElementById('formTitle').textContent = 'Edit Meal Record';
       document.getElementById('submitBtn').textContent = 'Save Changes';
-      document.getElementById('cancelBtn').style.display = 'inline-block';
+      document.getElementById('cancelBtn').style.display = 'block';
 
       window.scrollTo({ top: 0, behavior: 'smooth' });
     };
@@ -595,6 +639,48 @@
         }
       }
     };
+
+    // Export to CSV Functionality
+    document.getElementById('exportCsvBtn').addEventListener('click', function() {
+      const currentData = getFilteredAndSortedMeals();
+      if (currentData.length === 0) {
+        alert("No data available to export.");
+        return;
+      }
+
+      const headers = ["Date & Time", "Category", "Item Name", "Quantity", "Unit", "Notes"];
+      const rows = currentData.map(m => [
+        `"${m.dateTime || ''}"`,
+        `"${m.category || ''}"`,
+        `"${(m.itemName || '').replace(/"/g, '""')}"`,
+        `"${m.quantity || ''}"`,
+        `"${m.unit || ''}"`,
+        `"${(m.notes || '').replace(/"/g, '""')}"`
+      ]);
+
+      const csvContent = "data:text/csv;charset=utf-8," 
+        + [headers.join(","), ...rows.map(e => e.join(","))].join("\n");
+
+      const encodedUri = encodeURI(csvContent);
+      const link = document.createElement("a");
+      link.setAttribute("href", encodedUri);
+
+      // Format filename with current date and time
+      const now = new Date();
+      const year = now.getFullYear();
+      const month = String(now.getMonth() + 1).padStart(2, '0');
+      const day = String(now.getDate()).padStart(2, '0');
+      const hours = String(now.getHours()).padStart(2, '0');
+      const minutes = String(now.getMinutes()).padStart(2, '0');
+      const seconds = String(now.getSeconds()).padStart(2, '0');
+
+      const fileName = `meal-tracker-${year}-${month}-${day}_${hours}-${minutes}-${seconds}.csv`;
+      
+      link.setAttribute("download", fileName);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    });
 
     function resetForm() {
       document.getElementById('editId').value = '';
