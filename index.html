@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>7-Day Meal Tracker (v1.8 - Offline Enabled)</title>
+  <title>7-Day Meal Tracker (v2.0 - Item Name Auto-Complete)</title>
   <style>
     :root {
       --bg-color: #f8fafc;
@@ -184,7 +184,7 @@
       align-items: center;
       gap: 8px;
       flex: 1;
-      min-width: 200px;
+      min-width: 180px;
     }
 
     .filter-group label {
@@ -194,7 +194,7 @@
       white-space: nowrap;
     }
 
-    .filter-group select {
+    .filter-group select, .filter-group input[type="date"] {
       flex: 1;
       padding: 8px 10px;
     }
@@ -310,7 +310,7 @@
   <div class="container">
     <header>
       <div class="header-title">
-        <h1>7-Day Meal Tracker <span class="version-badge">v1.8</span></h1>
+        <h1>7-Day Meal Tracker <span class="version-badge">v2.0</span></h1>
         <p>Log and organize your meals on desktop & mobile</p>
       </div>
 
@@ -347,7 +347,10 @@
 
           <div class="form-group">
             <label for="itemName">Food / Item Name</label>
-            <input type="text" id="itemName" placeholder="e.g. Toast, White Bread, Milk" required />
+            <input type="text" id="itemName" list="previousItemsList" placeholder="e.g. Toast, White Bread, Milk" required autocomplete="off" />
+            <datalist id="previousItemsList">
+              <!-- Dynamically populated from previous Firestore records -->
+            </datalist>
           </div>
 
           <div class="form-group">
@@ -387,7 +390,7 @@
     <div class="card">
       <div class="controls-bar">
         <div class="filter-group">
-          <label for="filterCategory">Filter Category:</label>
+          <label for="filterCategory">Category:</label>
           <select id="filterCategory">
             <option value="All">All Categories</option>
             <option value="Breakfast">Breakfast</option>
@@ -397,6 +400,13 @@
             <option value="Snacks">Snacks</option>
           </select>
         </div>
+
+        <div class="filter-group">
+          <label for="filterDate">Date:</label>
+          <input type="date" id="filterDate" />
+          <button type="button" id="clearDateBtn" class="btn-secondary" style="padding: 8px 10px; font-size: 0.8rem;">Clear Date</button>
+        </div>
+
         <button id="exportCsvBtn" class="btn-export">Export to CSV</button>
       </div>
 
@@ -465,17 +475,15 @@
 
     // -------------------------------------------------------------
     // FIREBASE CONFIGURATION
-    // Ensure you replace these values with the exact credentials from:
-    // Firebase Console -> Project Settings -> General -> Your Apps
     // -------------------------------------------------------------
-   const firebaseConfig = {
-  apiKey: "AIzaSyDB-4V2EeH6PpnA5AOeF1gWg4byqWZJaS4",
-  authDomain: "day-meal-tracker.firebaseapp.com",
-  projectId: "day-meal-tracker",
-  storageBucket: "day-meal-tracker.firebasestorage.app",
-  messagingSenderId: "887302499002",
-  appId: "1:887302499002:web:cdd14253e71a739f4fb083",
-  measurementId: "G-WG281FT3VQ"
+    const firebaseConfig = {
+      apiKey: "AIzaSyDB-4V2EeH6PpnA5AOeF1gWg4byqWZJaS4",
+      authDomain: "day-meal-tracker.firebaseapp.com",
+      projectId: "day-meal-tracker",
+      storageBucket: "day-meal-tracker.firebasestorage.app",
+      messagingSenderId: "887302499002",
+      appId: "1:887302499002:web:cdd14253e71a739f4fb083",
+      measurementId: "G-WG281FT3VQ"
     };
 
     const app = initializeApp(firebaseConfig);
@@ -510,7 +518,7 @@
     let sortColumn = 'dateTime';
     let sortAscending = false;
     let currentUser = null;
-    let authMode = 'login'; // 'login' or 'create'
+    let authMode = 'login';
 
     // Auth State Listener
     onAuthStateChanged(auth, (user) => {
@@ -551,14 +559,51 @@
         id: doc.id,
         ...doc.data()
       }));
+      updateItemDatalist();
       renderTable();
     }, (error) => {
       console.error("Firestore error:", error);
     });
 
+    function updateItemDatalist() {
+      const datalist = document.getElementById('previousItemsList');
+      if (!datalist) return;
+
+      // Extract unique item names, removing empty entries and duplicates (case-insensitive deduplication)
+      const uniqueItems = [];
+      const seenItems = new Set();
+
+      meals.forEach(m => {
+        if (m.itemName && m.itemName.trim() !== '') {
+          const trimmed = m.itemName.trim();
+          const lower = trimmed.toLowerCase();
+          if (!seenItems.has(lower)) {
+            seenItems.add(lower);
+            uniqueItems.push(trimmed);
+          }
+        }
+      });
+
+      uniqueItems.sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }));
+
+      datalist.innerHTML = uniqueItems
+        .map(item => `<option value="${escapeHtml(item)}"></option>`)
+        .join('');
+    }
+
     function getFilteredAndSortedMeals() {
       const filterCategory = document.getElementById('filterCategory').value;
-      let filteredMeals = meals.filter(m => filterCategory === 'All' || m.category === filterCategory);
+      const filterDate = document.getElementById('filterDate').value;
+
+      let filteredMeals = meals.filter(m => {
+        const matchesCategory = (filterCategory === 'All' || m.category === filterCategory);
+        let matchesDate = true;
+        if (filterDate && m.dateTime) {
+          const mealDateStr = m.dateTime.split('T')[0];
+          matchesDate = (mealDateStr === filterDate);
+        }
+        return matchesCategory && matchesDate;
+      });
 
       filteredMeals.sort((a, b) => {
         let valA = a[sortColumn];
@@ -595,7 +640,7 @@
       const colSpanCount = isEditable ? 7 : 6;
 
       if (filteredMeals.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="${colSpanCount}" class="empty-state">No meal records found.</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="${colSpanCount}" class="empty-state">No meal records found matching filters.</td></tr>`;
         return;
       }
 
@@ -783,6 +828,11 @@
 
     document.getElementById('cancelBtn').addEventListener('click', resetForm);
     document.getElementById('filterCategory').addEventListener('change', renderTable);
+    document.getElementById('filterDate').addEventListener('change', renderTable);
+    document.getElementById('clearDateBtn').addEventListener('click', () => {
+      document.getElementById('filterDate').value = '';
+      renderTable();
+    });
 
     function escapeHtml(str) {
       return String(str).replace(/[&<>"']/g, function(m) {
