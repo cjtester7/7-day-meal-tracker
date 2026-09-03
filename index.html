@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>7-Day Meal Tracker (v1.6 - Offline Enabled)</title>
+  <title>7-Day Meal Tracker (v1.8 - Offline Enabled)</title>
   <style>
     :root {
       --bg-color: #f8fafc;
@@ -310,7 +310,7 @@
   <div class="container">
     <header>
       <div class="header-title">
-        <h1>7-Day Meal Tracker <span class="version-badge">v1.6</span></h1>
+        <h1>7-Day Meal Tracker <span class="version-badge">v1.8</span></h1>
         <p>Log and organize your meals on desktop & mobile</p>
       </div>
 
@@ -465,18 +465,17 @@
 
     // -------------------------------------------------------------
     // FIREBASE CONFIGURATION
+    // Ensure you replace these values with the exact credentials from:
+    // Firebase Console -> Project Settings -> General -> Your Apps
     // -------------------------------------------------------------
     const firebaseConfig = {
-      apiKey: "AIzaSyDB-4V2EeH6PpnA5A0eF1gWg4byqWZJaS4",
-      authDomain: "7-day-meal-tracker.firebaseapp.com",
-      projectId: "7-day-meal-tracker",
-      storageBucket: "7-day-meal-tracker.firebasestorage.app",
-      messagingSenderId: "887302499002",
-      appId: "1:887302499002:web:cdd14253e71a739f4fb083",
-      measurementId: "G-WG281FT3VQ"
-};
-
-
+      apiKey: "YOUR_FIREBASE_API_KEY",
+      authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
+      projectId: "YOUR_PROJECT_ID",
+      storageBucket: "YOUR_PROJECT_ID.firebasestorage.app",
+      messagingSenderId: "YOUR_SENDER_ID",
+      appId: "YOUR_APP_ID",
+      measurementId: "YOUR_MEASUREMENT_ID"
     };
 
     const app = initializeApp(firebaseConfig);
