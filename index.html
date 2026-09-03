@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>7-Day Meal Tracker (v1.5 - Auth & Access Control)</title>
+  <title>7-Day Meal Tracker (v1.6 - Offline Enabled)</title>
   <style>
     :root {
       --bg-color: #f8fafc;
@@ -310,7 +310,7 @@
   <div class="container">
     <header>
       <div class="header-title">
-        <h1>7-Day Meal Tracker <span class="version-badge">v1.5</span></h1>
+        <h1>7-Day Meal Tracker <span class="version-badge">v1.6</span></h1>
         <p>Log and organize your meals on desktop & mobile</p>
       </div>
 
@@ -442,11 +442,12 @@
     </div>
   </div>
 
-  <!-- Firebase SDK Modules -->
+  <!-- Firebase SDK Modules & App Logic -->
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
     import { 
       getFirestore, 
+      enableIndexedDbPersistence,
       collection, 
       addDoc, 
       updateDoc, 
@@ -466,7 +467,7 @@
     // FIREBASE CONFIGURATION
     // -------------------------------------------------------------
     const firebaseConfig = {
-      apiKey: "AIzaSyDB-4V2EeH6PpnA5AOeF1gWg4byqWZJaS4", 
+      apiKey: "AIzaSyDB-4V2EeH6PpnA5A0eF1gWg4byqWZJaS4",
       authDomain: "day-meal-tracker.firebaseapp.com",
       projectId: "day-meal-tracker",
       storageBucket: "day-meal-tracker.firebasestorage.app",
@@ -477,6 +478,29 @@
 
     const app = initializeApp(firebaseConfig);
     const db = getFirestore(app);
+
+    // -------------------------------------------------------------
+    // ENABLE OFFLINE PERSISTENCE
+    // -------------------------------------------------------------
+    enableIndexedDbPersistence(db).catch((err) => {
+      if (err.code === 'failed-precondition') {
+        console.warn('Firestore offline persistence failed: Multiple tabs open.');
+      } else if (err.code === 'unimplemented') {
+        console.warn('Firestore offline persistence is not supported by this browser.');
+      }
+    });
+
+    // -------------------------------------------------------------
+    // SERVICE WORKER REGISTRATION
+    // -------------------------------------------------------------
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./sw.js')
+          .then(reg => console.log('Service Worker registered:', reg.scope))
+          .catch(err => console.error('Service Worker registration failed:', err));
+      });
+    }
+
     const auth = getAuth(app);
     const mealsCollection = collection(db, "meals");
 
