@@ -3,11 +3,12 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>7-Day Meal Tracker (v2.0 - Item Name Auto-Complete)</title>
+  <title>7-Day Meal Tracker (v2.1 - Polished UI & Animations)</title>
   <style>
     :root {
-      --bg-color: #f8fafc;
-      --card-bg: #ffffff;
+      --bg-color: #f1f5f9;
+      --card-bg-form: #f0f7ff;
+      --card-bg-data: #fafbfc;
       --text-main: #0f172a;
       --text-muted: #64748b;
       --primary: #2563eb;
@@ -15,10 +16,10 @@
       --success: #16a34a;
       --success-hover: #15803d;
       --danger: #ef4444;
-      --accent: #f1f5f9;
-      --border: #e2e8f0;
-      --radius: 10px;
-      --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -2px rgba(0, 0, 0, 0.05);
+      --accent: #e2e8f0;
+      --border: #cbd5e1;
+      --radius: 12px;
+      --shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
     }
 
     * {
@@ -32,7 +33,7 @@
       background-color: var(--bg-color);
       color: var(--text-main);
       line-height: 1.5;
-      padding: 16px 12px;
+      padding: 20px 12px;
       overflow-x: hidden;
     }
 
@@ -43,12 +44,17 @@
     }
 
     header {
-      margin-bottom: 20px;
+      margin-bottom: 24px;
       display: flex;
       justify-content: space-between;
       align-items: center;
       flex-wrap: wrap;
       gap: 12px;
+      background: #ffffff;
+      padding: 16px 20px;
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      border: 1px solid var(--border);
     }
 
     .header-title h1 {
@@ -81,29 +87,48 @@
     .user-status {
       font-size: 0.85rem;
       color: var(--text-muted);
+      font-weight: 500;
     }
 
     .card {
-      background: var(--card-bg);
       border-radius: var(--radius);
-      padding: 16px;
+      padding: 20px;
       box-shadow: var(--shadow);
-      border: 1px solid var(--border);
-      margin-bottom: 20px;
+      margin-bottom: 24px;
       width: 100%;
     }
 
+    /* Distinct Card Backgrounds */
+    .card-form {
+      background: var(--card-bg-form);
+      border: 1px solid #bfdbfe;
+      border-top: 5px solid #3b82f6;
+    }
+
+    .card-data {
+      background: var(--card-bg-data);
+      border: 1px solid #d1d5db;
+      border-top: 5px solid #10b981;
+    }
+
     .card-title {
-      font-size: 1rem;
-      font-weight: 600;
-      margin-bottom: 14px;
-      color: var(--text-main);
+      font-size: 1.1rem;
+      font-weight: 700;
+      margin-bottom: 16px;
+      color: #1e3a8a;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .card-data .card-title {
+      color: #065f46;
     }
 
     .form-grid {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-      gap: 12px;
+      gap: 14px;
     }
 
     .form-group {
@@ -118,20 +143,20 @@
 
     label {
       font-size: 0.75rem;
-      font-weight: 600;
-      color: var(--text-muted);
+      font-weight: 700;
+      color: #475569;
       text-transform: uppercase;
-      letter-spacing: 0.025em;
+      letter-spacing: 0.03em;
     }
 
     input, select, textarea {
       width: 100%;
       padding: 10px 12px;
-      border: 1px solid var(--border);
-      border-radius: 6px;
-      font-size: 16px;
+      border: 1px solid #cbd5e1;
+      border-radius: 8px;
+      font-size: 15px;
       color: var(--text-main);
-      background-color: #fff;
+      background-color: #ffffff;
       outline: none;
       transition: border-color 0.2s, box-shadow 0.2s;
     }
@@ -143,40 +168,44 @@
 
     input:focus, select:focus, textarea:focus {
       border-color: var(--primary);
-      box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+      box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.2);
     }
 
     .btn-group {
       display: flex;
       gap: 10px;
       justify-content: flex-end;
-      margin-top: 14px;
+      margin-top: 16px;
     }
 
     button {
-      padding: 10px 16px;
+      padding: 10px 18px;
       font-size: 0.9rem;
       font-weight: 600;
-      border-radius: 6px;
+      border-radius: 8px;
       border: none;
       cursor: pointer;
-      transition: background-color 0.2s;
+      transition: all 0.2s ease;
     }
 
     .btn-primary { background-color: var(--primary); color: #ffffff; }
-    .btn-primary:hover { background-color: var(--primary-hover); }
-    .btn-secondary { background-color: var(--accent); color: var(--text-main); border: 1px solid var(--border); }
-    .btn-secondary:hover { background-color: #e2e8f0; }
+    .btn-primary:hover { background-color: var(--primary-hover); transform: translateY(-1px); }
+    .btn-secondary { background-color: #ffffff; color: var(--text-main); border: 1px solid #cbd5e1; }
+    .btn-secondary:hover { background-color: #f1f5f9; }
     .btn-export { background-color: var(--success); color: #ffffff; white-space: nowrap; }
-    .btn-export:hover { background-color: var(--success-hover); }
+    .btn-export:hover { background-color: var(--success-hover); transform: translateY(-1px); }
 
     .controls-bar {
       display: flex;
       justify-content: space-between;
       align-items: center;
       flex-wrap: wrap;
-      gap: 12px;
-      margin-bottom: 16px;
+      gap: 14px;
+      margin-bottom: 18px;
+      background: #ffffff;
+      padding: 12px 16px;
+      border-radius: 8px;
+      border: 1px solid #e2e8f0;
     }
 
     .filter-group {
@@ -191,6 +220,7 @@
       text-transform: none;
       letter-spacing: normal;
       font-size: 0.85rem;
+      font-weight: 600;
       white-space: nowrap;
     }
 
@@ -199,50 +229,64 @@
       padding: 8px 10px;
     }
 
-    .table-container { width: 100%; }
+    .table-container { width: 100%; border-radius: 8px; overflow: hidden; border: 1px solid #e2e8f0; }
 
     table {
       width: 100%;
       border-collapse: collapse;
       text-align: left;
       font-size: 0.9rem;
-      background: var(--card-bg);
+      background: #ffffff;
     }
 
     th {
-      background-color: var(--accent);
-      color: var(--text-main);
-      font-weight: 600;
-      padding: 10px 12px;
+      background-color: #f1f5f9;
+      color: #334155;
+      font-weight: 700;
+      padding: 12px 14px;
       cursor: pointer;
       user-select: none;
-      border-bottom: 1px solid var(--border);
+      border-bottom: 2px solid #cbd5e1;
       white-space: nowrap;
     }
 
     th .sort-icon { margin-left: 4px; font-size: 0.75rem; color: var(--text-muted); }
-    td { padding: 10px 12px; border-bottom: 1px solid var(--border); color: var(--text-main); }
+    td { padding: 12px 14px; border-bottom: 1px solid #e2e8f0; color: var(--text-main); }
+    tr:hover td { background-color: #f8fafc; }
     .notes-cell { color: var(--text-muted); font-size: 0.85rem; }
+
+    /* Flash Animation for Added / Updated Rows */
+    @keyframes rowFlash {
+      0% { background-color: #fef08a; transform: scale(1.01); }
+      50% { background-color: #fef9c3; }
+      100% { background-color: transparent; transform: scale(1); }
+    }
+
+    .row-highlight {
+      animation: rowFlash 2.5s ease-out;
+    }
 
     .category-badge {
       display: inline-block;
-      padding: 2px 8px;
-      border-radius: 12px;
+      padding: 3px 10px;
+      border-radius: 16px;
       font-size: 0.75rem;
-      font-weight: 600;
+      font-weight: 700;
       text-transform: capitalize;
     }
 
-    .cat-breakfast { background: #fef3c7; color: #92400e; }
-    .cat-lunch     { background: #dbeafe; color: #1e40af; }
-    .cat-dinner    { background: #e0e7ff; color: #3730a3; }
-    .cat-dessert   { background: #fce7f3; color: #9d174d; }
-    .cat-snacks    { background: #dcfce7; color: #166534; }
+    .cat-breakfast { background: #fef3c7; color: #92400e; border: 1px solid #fde68a; }
+    .cat-lunch     { background: #dbeafe; color: #1e40af; border: 1px solid #bfdbfe; }
+    .cat-dinner    { background: #e0e7ff; color: #3730a3; border: 1px solid #c7d2fe; }
+    .cat-dessert   { background: #fce7f3; color: #9d174d; border: 1px solid #fbcfe8; }
+    .cat-snacks    { background: #dcfce7; color: #166534; border: 1px solid #bbf7d0; }
 
-    .empty-state { text-align: center; padding: 24px 16px; color: var(--text-muted); }
-    .btn-danger-sm, .btn-edit-sm { padding: 6px 10px; font-size: 0.8rem; }
-    .btn-danger-sm { background-color: #fef2f2; color: var(--danger); }
-    .btn-edit-sm { background-color: #eff6ff; color: var(--primary); }
+    .empty-state { text-align: center; padding: 28px 16px; color: var(--text-muted); font-weight: 500; }
+    .btn-danger-sm, .btn-edit-sm { padding: 6px 12px; font-size: 0.8rem; }
+    .btn-danger-sm { background-color: #fef2f2; color: var(--danger); border: 1px solid #fecaca; }
+    .btn-danger-sm:hover { background-color: #fee2e2; }
+    .btn-edit-sm { background-color: #eff6ff; color: var(--primary); border: 1px solid #bfdbfe; }
+    .btn-edit-sm:hover { background-color: #dbeafe; }
 
     /* Modal Styling */
     .modal {
@@ -253,7 +297,7 @@
       top: 0;
       width: 100%;
       height: 100%;
-      background-color: rgba(15, 23, 42, 0.5);
+      background-color: rgba(15, 23, 42, 0.6);
       align-items: center;
       justify-content: center;
     }
@@ -264,7 +308,7 @@
       border-radius: var(--radius);
       width: 90%;
       max-width: 400px;
-      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1);
+      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.2);
     }
 
     .modal-header {
@@ -298,7 +342,7 @@
         box-shadow: 0 1px 3px rgba(0,0,0,0.02);
       }
       td { border-bottom: none; padding: 4px 0; display: flex; justify-content: space-between; align-items: center; font-size: 0.875rem; }
-      td::before { content: attr(data-label); font-weight: 600; color: var(--text-muted); font-size: 0.75rem; text-transform: uppercase; }
+      td::before { content: attr(data-label); font-weight: 700; color: var(--text-muted); font-size: 0.75rem; text-transform: uppercase; }
       td.actions-td { margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--border); display: flex; gap: 8px; }
       td.actions-td::before { display: none; }
       .btn-edit-sm, .btn-danger-sm { flex: 1; text-align: center; padding: 8px 0; }
@@ -310,7 +354,7 @@
   <div class="container">
     <header>
       <div class="header-title">
-        <h1>7-Day Meal Tracker <span class="version-badge">v2.0</span></h1>
+        <h1>7-Day Meal Tracker <span class="version-badge">v2.1</span></h1>
         <p>Log and organize your meals on desktop & mobile</p>
       </div>
 
@@ -322,9 +366,9 @@
       </div>
     </header>
 
-    <!-- Entry / Edit Form (Hidden by default in Read-Only Mode) -->
-    <div class="card" id="formCard" style="display: none;">
-      <div class="card-title" id="formTitle">Log New Meal</div>
+    <!-- Entry / Edit Form Section -->
+    <div class="card card-form" id="formCard" style="display: none;">
+      <div class="card-title" id="formTitle">✏️ Log New Meal</div>
       <form id="mealForm">
         <input type="hidden" id="editId" value="" />
         
@@ -386,8 +430,10 @@
       </form>
     </div>
 
-    <!-- Data Table & Filter Controls -->
-    <div class="card">
+    <!-- Data Table & Filter Section -->
+    <div class="card card-data">
+      <div class="card-title">📊 Meal Logs & History</div>
+      
       <div class="controls-bar">
         <div class="filter-group">
           <label for="filterCategory">Category:</label>
@@ -473,9 +519,7 @@
       onAuthStateChanged 
     } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 
-    // -------------------------------------------------------------
     // FIREBASE CONFIGURATION
-    // -------------------------------------------------------------
     const firebaseConfig = {
       apiKey: "AIzaSyDB-4V2EeH6PpnA5AOeF1gWg4byqWZJaS4",
       authDomain: "day-meal-tracker.firebaseapp.com",
@@ -489,9 +533,6 @@
     const app = initializeApp(firebaseConfig);
     const db = getFirestore(app);
 
-    // -------------------------------------------------------------
-    // ENABLE OFFLINE PERSISTENCE
-    // -------------------------------------------------------------
     enableIndexedDbPersistence(db).catch((err) => {
       if (err.code === 'failed-precondition') {
         console.warn('Firestore offline persistence failed: Multiple tabs open.');
@@ -500,9 +541,6 @@
       }
     });
 
-    // -------------------------------------------------------------
-    // SERVICE WORKER REGISTRATION
-    // -------------------------------------------------------------
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
         navigator.serviceWorker.register('./sw.js')
@@ -519,8 +557,8 @@
     let sortAscending = false;
     let currentUser = null;
     let authMode = 'login';
+    let lastModifiedId = null;
 
-    // Auth State Listener
     onAuthStateChanged(auth, (user) => {
       currentUser = user;
       const userStatus = document.getElementById('userStatus');
@@ -569,7 +607,6 @@
       const datalist = document.getElementById('previousItemsList');
       if (!datalist) return;
 
-      // Extract unique item names, removing empty entries and duplicates (case-insensitive deduplication)
       const uniqueItems = [];
       const seenItems = new Set();
 
@@ -653,9 +690,10 @@
         });
 
         const badgeClass = `cat-${m.category.toLowerCase()}`;
+        const isHighlighted = (m.id === lastModifiedId) ? 'row-highlight' : '';
 
         return `
-          <tr>
+          <tr id="row-${m.id}" class="${isHighlighted}">
             <td data-label="Date & Time">${formattedDate}</td>
             <td data-label="Category"><span class="category-badge ${badgeClass}">${m.category}</span></td>
             <td data-label="Item Name"><strong>${escapeHtml(m.itemName)}</strong></td>
@@ -671,6 +709,14 @@
           </tr>
         `;
       }).join('');
+
+      // Scroll to newly created/edited row if applicable
+      if (lastModifiedId) {
+        const highlightedEl = document.getElementById(`row-${lastModifiedId}`);
+        if (highlightedEl) {
+          highlightedEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }
+      }
     }
 
     window.sortTable = function(column) {
@@ -699,10 +745,18 @@
         if (editId) {
           const docRef = doc(db, "meals", editId);
           await updateDoc(docRef, { dateTime, category, itemName, quantity, unit, notes });
+          lastModifiedId = editId;
         } else {
-          await addDoc(mealsCollection, { dateTime, category, itemName, quantity, unit, notes });
+          const docRef = await addDoc(mealsCollection, { dateTime, category, itemName, quantity, unit, notes });
+          lastModifiedId = docRef.id;
         }
         resetForm();
+        
+        // Clear flash highlight state after animation finishes
+        setTimeout(() => {
+          lastModifiedId = null;
+        }, 2500);
+
       } catch (err) {
         alert("Error saving document: " + err.message);
       }
@@ -721,7 +775,7 @@
       document.getElementById('unit').value = meal.unit || '';
       document.getElementById('notes').value = meal.notes || '';
 
-      document.getElementById('formTitle').textContent = 'Edit Meal Record';
+      document.getElementById('formTitle').textContent = '✏️ Edit Meal Record';
       document.getElementById('submitBtn').textContent = 'Save Changes';
       document.getElementById('cancelBtn').style.display = 'block';
 
@@ -820,7 +874,7 @@
     function resetForm() {
       document.getElementById('editId').value = '';
       document.getElementById('mealForm').reset();
-      document.getElementById('formTitle').textContent = 'Log New Meal';
+      document.getElementById('formTitle').textContent = '✏️ Log New Meal';
       document.getElementById('submitBtn').textContent = 'Add Meal Entry';
       document.getElementById('cancelBtn').style.display = 'none';
       setCurrentDateTimeInput();
