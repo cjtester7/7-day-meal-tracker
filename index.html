@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>7-Day Meal Tracker (v2.2.2 - Mobile Fix)</title>
+  <title>7-Day Meal Tracker (v2.2.3 - Mobile Datalist Fix)</title>
   <style>
     :root {
       --bg-color: #f1f5f9;
@@ -254,7 +254,6 @@
     tr:hover td { background-color: #f8fafc; }
     .notes-cell { color: var(--text-muted); font-size: 0.85rem; }
 
-    /* Action Icon Buttons */
     .btn-icon {
       display: inline-flex;
       align-items: center;
@@ -302,7 +301,6 @@
       justify-content: flex-end;
     }
 
-    /* Flash Animation for Added / Updated Rows */
     @keyframes rowFlash {
       0% { background-color: #fef08a; transform: scale(1.01); }
       50% { background-color: #fef9c3; }
@@ -330,7 +328,6 @@
 
     .empty-state { text-align: center; padding: 28px 16px; color: var(--text-muted); font-weight: 500; }
 
-    /* Modal Styling */
     .modal {
       display: none;
       position: fixed;
@@ -366,7 +363,6 @@
       color: var(--text-muted);
     }
 
-    /* Mobile Responsive Card Styling */
     @media (max-width: 640px) {
       header { flex-direction: column; align-items: flex-start; }
       .form-grid { grid-template-columns: 1fr; }
@@ -439,7 +435,6 @@
         width: auto;
       }
 
-      /* Exception for empty state on mobile */
       td.empty-state {
         display: block;
         text-align: center;
@@ -457,7 +452,7 @@
   <div class="container">
     <header>
       <div class="header-title">
-        <h1>7-Day Meal Tracker <span class="version-badge">v2.2.2</span></h1>
+        <h1>7-Day Meal Tracker <span class="version-badge">v2.2.3</span></h1>
         <p>Log and organize your meals on desktop & mobile</p>
       </div>
 
@@ -469,7 +464,6 @@
       </div>
     </header>
 
-    <!-- Entry / Edit Form Section -->
     <div class="card card-form" id="formCard" style="display: none;">
       <div class="card-title" id="formTitle">✏️ Log New Meal</div>
       <form id="mealForm">
@@ -494,10 +488,17 @@
 
           <div class="form-group">
             <label for="itemName">Food / Item Name</label>
-            <input type="text" id="itemName" list="previousItemsList" placeholder="e.g. Toast, White Bread, Milk" required autocomplete="off" />
-            <datalist id="previousItemsList">
-              <!-- Dynamically populated from previous Firestore records -->
-            </datalist>
+            <input 
+              type="text" 
+              id="itemName" 
+              list="previousItemsList" 
+              placeholder="e.g. Toast, White Bread, Milk" 
+              required 
+              autocomplete="off" 
+              autocorrect="off" 
+              spellcheck="false" 
+            />
+            <datalist id="previousItemsList"></datalist>
           </div>
 
           <div class="form-group">
@@ -533,7 +534,6 @@
       </form>
     </div>
 
-    <!-- Data Table & Filter Section -->
     <div class="card card-data">
       <div class="card-title">📊 Meal Logs & History</div>
       
@@ -572,15 +572,12 @@
               <th id="actionsHeader" style="cursor: default; text-align: right; display: none;">Actions</th>
             </tr>
           </thead>
-          <tbody id="mealTableBody">
-            <!-- Dynamic meal rows rendered from Firestore -->
-          </tbody>
+          <tbody id="mealTableBody"></tbody>
         </table>
       </div>
     </div>
   </div>
 
-  <!-- Auth Modal -->
   <div class="modal" id="authModal">
     <div class="modal-content">
       <div class="modal-header">
@@ -601,7 +598,6 @@
     </div>
   </div>
 
-  <!-- Firebase SDK Modules & App Logic -->
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
     import { 
@@ -622,7 +618,6 @@
       onAuthStateChanged 
     } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 
-    // FIREBASE CONFIGURATION
     const firebaseConfig = {
       apiKey: "AIzaSyDB-4V2EeH6PpnA5AOeF1gWg4byqWZJaS4",
       authDomain: "day-meal-tracker.firebaseapp.com",
@@ -643,14 +638,6 @@
         console.warn('Firestore offline persistence is not supported by this browser.');
       }
     });
-
-    if ('serviceWorker' in navigator) {
-      window.addEventListener('load', () => {
-        navigator.serviceWorker.register('./sw.js')
-          .then(reg => console.log('Service Worker registered:', reg.scope))
-          .catch(err => console.error('Service Worker registration failed:', err));
-      });
-    }
 
     const auth = getAuth(app);
     const mealsCollection = collection(db, "meals");
@@ -708,6 +695,7 @@
 
     function updateItemDatalist() {
       const datalist = document.getElementById('previousItemsList');
+      const itemInput = document.getElementById('itemName');
       if (!datalist) return;
 
       const uniqueItems = [];
@@ -726,9 +714,14 @@
 
       uniqueItems.sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }));
 
+      // Unbind datalist briefly to force mobile OS webviews to acknowledge DOM update
+      if (itemInput) itemInput.removeAttribute('list');
+
       datalist.innerHTML = uniqueItems
-        .map(item => `<option value="${escapeHtml(item)}"></option>`)
+        .map(item => `<option value="${escapeHtml(item)}">${escapeHtml(item)}</option>`)
         .join('');
+
+      if (itemInput) itemInput.setAttribute('list', 'previousItemsList');
     }
 
     function getFilteredAndSortedMeals() {
@@ -820,13 +813,6 @@
           </tr>
         `;
       }).join('');
-
-      if (lastModifiedId) {
-        const highlightedEl = document.getElementById(`row-${lastModifiedId}`);
-        if (highlightedEl) {
-          highlightedEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-        }
-      }
     }
 
     window.sortTable = function(column) {
@@ -861,11 +847,6 @@
           lastModifiedId = docRef.id;
         }
         resetForm();
-        
-        setTimeout(() => {
-          lastModifiedId = null;
-        }, 2500);
-
       } catch (err) {
         alert("Error saving document: " + err.message);
       }
@@ -902,7 +883,6 @@
       }
     };
 
-    // Modal & Auth Handling
     const authModal = document.getElementById('authModal');
     
     document.getElementById('openAuthBtn').addEventListener('click', () => {
@@ -946,7 +926,6 @@
       }
     });
 
-    // CSV Export
     document.getElementById('exportCsvBtn').addEventListener('click', function() {
       const currentData = getFilteredAndSortedMeals();
       if (currentData.length === 0) {
@@ -972,7 +951,7 @@
       link.setAttribute("href", encodedUri);
 
       const now = new Date();
-      const fileName = `meal-tracker-${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}_${String(now.getHours()).padStart(2,'0')}-${String(now.getMinutes()).padStart(2,'0')}-${String(now.getSeconds()).padStart(2,'0')}.csv`;
+      const fileName = `meal-tracker-${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}.csv`;
       
       link.setAttribute("download", fileName);
       document.body.appendChild(link);
