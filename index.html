@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>7-Day Meal Tracker (v2.2.1 - Icon Fix)</title>
+  <title>7-Day Meal Tracker (v2.2.2 - Mobile Fix)</title>
   <style>
     :root {
       --bg-color: #f1f5f9;
@@ -98,7 +98,6 @@
       width: 100%;
     }
 
-    /* Distinct Card Backgrounds */
     .card-form {
       background: var(--card-bg-form);
       border: 1px solid #bfdbfe;
@@ -229,7 +228,7 @@
       padding: 8px 10px;
     }
 
-    .table-container { width: 100%; border-radius: 8px; overflow: hidden; border: 1px solid #e2e8f0; }
+    .table-container { width: 100%; border-radius: 8px; overflow-x: auto; border: 1px solid #e2e8f0; }
 
     table {
       width: 100%;
@@ -367,28 +366,89 @@
       color: var(--text-muted);
     }
 
-    /* Mobile Responsive */
+    /* Mobile Responsive Card Styling */
     @media (max-width: 640px) {
       header { flex-direction: column; align-items: flex-start; }
       .form-grid { grid-template-columns: 1fr; }
       .btn-group { flex-direction: column; }
       .btn-secondary, .btn-export { width: 100%; }
       .controls-bar { flex-direction: column; align-items: stretch; }
-      table thead { display: none; }
-      table, tbody, tr, td { display: block; width: 100%; }
+      
+      .table-container {
+        border: none;
+        overflow: visible;
+      }
+      
+      table, tbody, tr, td {
+        display: block;
+        width: 100%;
+      }
+      
+      table thead {
+        display: none;
+      }
+
       tr {
         background: #ffffff;
         border: 1px solid var(--border);
         border-radius: var(--radius);
-        margin-bottom: 12px;
-        padding: 12px;
-        box-shadow: 0 1px 3px rgba(0,0,0,0.02);
+        margin-bottom: 14px;
+        padding: 12px 14px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.03);
       }
-      td { border-bottom: none; padding: 4px 0; display: flex; justify-content: space-between; align-items: center; font-size: 0.875rem; }
-      td::before { content: attr(data-label); font-weight: 700; color: var(--text-muted); font-size: 0.75rem; text-transform: uppercase; }
-      td.actions-td { margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--border); display: flex; justify-content: flex-end; }
-      td.actions-td::before { content: 'Actions'; }
-      .actions-td-inner { justify-content: flex-end; width: auto; }
+
+      td {
+        border-bottom: 1px dashed #f1f5f9;
+        padding: 8px 0;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        font-size: 0.875rem;
+        min-height: 36px;
+      }
+
+      td:last-child {
+        border-bottom: none;
+      }
+
+      td::before {
+        content: attr(data-label);
+        font-weight: 700;
+        color: var(--text-muted);
+        font-size: 0.75rem;
+        text-transform: uppercase;
+        margin-right: 12px;
+        flex-shrink: 0;
+      }
+
+      td.actions-td {
+        margin-top: 6px;
+        padding-top: 10px;
+        border-top: 1px solid var(--border);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+
+      td.actions-td::before {
+        content: 'Actions';
+      }
+
+      .actions-td-inner {
+        justify-content: flex-end;
+        width: auto;
+      }
+
+      /* Exception for empty state on mobile */
+      td.empty-state {
+        display: block;
+        text-align: center;
+        border: none;
+      }
+      
+      td.empty-state::before {
+        display: none;
+      }
     }
   </style>
 </head>
@@ -397,7 +457,7 @@
   <div class="container">
     <header>
       <div class="header-title">
-        <h1>7-Day Meal Tracker <span class="version-badge">v2.2.1</span></h1>
+        <h1>7-Day Meal Tracker <span class="version-badge">v2.2.2</span></h1>
         <p>Log and organize your meals on desktop & mobile</p>
       </div>
 
@@ -740,13 +800,13 @@
         return `
           <tr id="row-${m.id}" class="${isHighlighted}">
             <td data-label="Date & Time">${formattedDate}</td>
-            <td data-label="Category"><span class="category-badge ${badgeClass}">${m.category}</span></td>
-            <td data-label="Item Name"><strong>${escapeHtml(m.itemName)}</strong></td>
+            <td data-label="Category"><span class="category-badge ${badgeClass}">${escapeHtml(m.category || '')}</span></td>
+            <td data-label="Item Name"><strong>${escapeHtml(m.itemName || '')}</strong></td>
             <td data-label="Quantity">${m.quantity !== '' && m.quantity !== null && m.quantity !== undefined ? m.quantity : '-'}</td>
             <td data-label="Unit">${m.unit ? escapeHtml(m.unit) : '-'}</td>
             <td data-label="Notes" class="notes-cell">${m.notes ? escapeHtml(m.notes) : '-'}</td>
             ${isEditable ? `
-              <td class="actions-td">
+              <td class="actions-td" data-label="Actions">
                 <div class="actions-td-inner">
                   <button class="btn-icon btn-icon-edit" onclick="window.editMeal('${m.id}')" title="Edit Entry">
                     <svg viewBox="0 0 24 24"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>
