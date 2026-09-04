@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>7-Day Meal Tracker (v2.2.4 - Mobile Select Fix)</title>
+  <title>7-Day Meal Tracker (v2.2.5 - Dynamic Select Fix)</title>
   <style>
     :root {
       --bg-color: #f1f5f9;
@@ -170,15 +170,10 @@
       box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.2);
     }
 
-    /* Dynamic Food Item Input Selector */
     .food-input-container {
       display: flex;
       flex-direction: column;
       gap: 6px;
-    }
-
-    .food-select-wrapper {
-      position: relative;
     }
 
     .btn-group {
@@ -463,7 +458,7 @@
   <div class="container">
     <header>
       <div class="header-title">
-        <h1>7-Day Meal Tracker <span class="version-badge">v2.2.4</span></h1>
+        <h1>7-Day Meal Tracker <span class="version-badge">v2.2.5</span></h1>
         <p>Log and organize your meals on desktop & mobile</p>
       </div>
 
@@ -498,16 +493,17 @@
           </div>
 
           <div class="form-group">
-            <label for="itemName">Food / Item Name</label>
+            <label for="itemSelect">Food / Item Name</label>
             <div class="food-input-container">
-              <select id="itemSelect" style="margin-bottom: 4px;">
-                <option value="">-- Choose Existing Item --</option>
+              <select id="itemSelect" required>
+                <option value="">-- Choose Item --</option>
+                <option value="__NEW__">+ Add New Item...</option>
               </select>
               <input 
                 type="text" 
                 id="itemName" 
-                placeholder="Or type new food item..." 
-                required 
+                placeholder="Enter new food item name..." 
+                style="display: none;" 
                 autocomplete="off" 
               />
             </div>
@@ -709,6 +705,7 @@
       const itemSelect = document.getElementById('itemSelect');
       if (!itemSelect) return;
 
+      const currentValue = itemSelect.value;
       const uniqueItems = [];
       const seenItems = new Set();
 
@@ -725,13 +722,35 @@
 
       uniqueItems.sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }));
 
-      itemSelect.innerHTML = `<option value="">-- Choose Existing Item (${uniqueItems.length}) --</option>` +
-        uniqueItems.map(item => `<option value="${escapeHtml(item)}">${escapeHtml(item)}</option>`).join('');
+      let optionsHtml = `<option value="">-- Choose Item --</option>`;
+      optionsHtml += `<option value="__NEW__">+ Add New Item...</option>`;
+
+      if (uniqueItems.length > 0) {
+        optionsHtml += `<optgroup label="Logged Items">`;
+        uniqueItems.forEach(item => {
+          optionsHtml += `<option value="${escapeHtml(item)}">${escapeHtml(item)}</option>`;
+        });
+        optionsHtml += `</optgroup>`;
+      }
+
+      itemSelect.innerHTML = optionsHtml;
+
+      if (currentValue && (seenItems.has(currentValue.toLowerCase()) || currentValue === '__NEW__')) {
+        itemSelect.value = currentValue;
+      }
     }
 
     document.getElementById('itemSelect').addEventListener('change', function() {
-      if (this.value) {
-        document.getElementById('itemName').value = this.value;
+      const itemNameInput = document.getElementById('itemName');
+      if (this.value === '__NEW__') {
+        itemNameInput.style.display = 'block';
+        itemNameInput.value = '';
+        itemNameInput.required = true;
+        itemNameInput.focus();
+      } else {
+        itemNameInput.style.display = 'none';
+        itemNameInput.required = false;
+        itemNameInput.value = this.value;
       }
     });
 
@@ -843,7 +862,16 @@
       const editId = document.getElementById('editId').value;
       const dateTime = document.getElementById('dateTime').value;
       const category = document.getElementById('category').value;
-      const itemName = document.getElementById('itemName').value.trim();
+      const itemSelectVal = document.getElementById('itemSelect').value;
+      const itemNameInput = document.getElementById('itemName').value.trim();
+      
+      const itemName = (itemSelectVal === '__NEW__') ? itemNameInput : itemSelectVal;
+
+      if (!itemName) {
+        alert("Please select or enter a valid food item name.");
+        return;
+      }
+
       const quantity = document.getElementById('quantity').value;
       const unit = document.getElementById('unit').value;
       const notes = document.getElementById('notes').value.trim();
@@ -871,8 +899,24 @@
       document.getElementById('editId').value = meal.id;
       document.getElementById('dateTime').value = meal.dateTime;
       document.getElementById('category').value = meal.category;
-      document.getElementById('itemName').value = meal.itemName;
-      document.getElementById('itemSelect').value = meal.itemName || '';
+      
+      const itemSelect = document.getElementById('itemSelect');
+      const itemNameInput = document.getElementById('itemName');
+
+      const optionExists = Array.from(itemSelect.options).some(opt => opt.value === meal.itemName);
+
+      if (optionExists) {
+        itemSelect.value = meal.itemName;
+        itemNameInput.style.display = 'none';
+        itemNameInput.required = false;
+        itemNameInput.value = meal.itemName;
+      } else {
+        itemSelect.value = '__NEW__';
+        itemNameInput.style.display = 'block';
+        itemNameInput.required = true;
+        itemNameInput.value = meal.itemName || '';
+      }
+
       document.getElementById('quantity').value = meal.quantity || '';
       document.getElementById('unit').value = meal.unit || '';
       document.getElementById('notes').value = meal.notes || '';
@@ -977,7 +1021,13 @@
       document.getElementById('formTitle').textContent = '✏️ Log New Meal';
       document.getElementById('submitBtn').textContent = 'Add Meal Entry';
       document.getElementById('cancelBtn').style.display = 'none';
-      document.getElementById('itemSelect').value = '';
+      
+      const itemSelect = document.getElementById('itemSelect');
+      const itemNameInput = document.getElementById('itemName');
+      itemSelect.value = '';
+      itemNameInput.style.display = 'none';
+      itemNameInput.required = false;
+
       setCurrentDateTimeInput();
     }
 
