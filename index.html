@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>7-Day Meal Tracker (v2.7 - Offline Support & Syncing)</title>
+  <title>7-Day Meal Tracker (v3.0 - Main Menu)</title>
   
   <!-- Web App Manifest (Inline Data URI) -->
   <link rel="manifest" href='data:application/manifest+json,{"name":"7-Day Meal Tracker","short_name":"MealTracker","start_url":"/","display":"standalone","background_color":"#f1f5f9","theme_color":"#2563eb"}' />
@@ -102,6 +102,86 @@
       padding: 4px 8px;
       border-radius: 6px;
       border: 1px solid #fde68a;
+    }
+
+    /* Menu View Styles */
+    .menu-container {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 24px;
+      margin: 32px 0;
+    }
+
+    .menu-button-card {
+      background: #ffffff;
+      border: 2px solid var(--border);
+      border-radius: 16px;
+      padding: 36px 24px;
+      text-align: center;
+      cursor: pointer;
+      box-shadow: var(--shadow);
+      transition: all 0.25s ease-in-out;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 16px;
+    }
+
+    .menu-button-card:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 12px 24px rgba(0, 0, 0, 0.08);
+      border-color: var(--primary);
+    }
+
+    .menu-card-log {
+      border-top: 6px solid var(--primary);
+    }
+
+    .menu-card-history {
+      border-top: 6px solid var(--success);
+    }
+
+    .menu-icon-wrapper {
+      width: 80px;
+      height: 80px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .menu-card-log .menu-icon-wrapper {
+      background-color: #eff6ff;
+      color: var(--primary);
+    }
+
+    .menu-card-history .menu-icon-wrapper {
+      background-color: #f0fdf4;
+      color: var(--success);
+    }
+
+    .menu-icon-wrapper svg {
+      width: 42px;
+      height: 42px;
+      fill: currentColor;
+    }
+
+    .menu-button-card h2 {
+      font-size: 1.35rem;
+      font-weight: 700;
+      color: var(--text-main);
+    }
+
+    .menu-button-card p {
+      font-size: 0.9rem;
+      color: var(--text-muted);
+    }
+
+    .nav-back-bar {
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
     }
 
     .card {
@@ -503,7 +583,7 @@
   <div class="container">
     <header>
       <div class="header-title">
-        <h1>7-Day Meal Tracker <span class="version-badge">v2.7</span></h1>
+        <h1>7-Day Meal Tracker <span class="version-badge">v3.0</span></h1>
         <p>Log and organize your meals on desktop & mobile</p>
       </div>
 
@@ -515,6 +595,35 @@
       </div>
     </header>
 
+    <!-- Navigation Back Bar (visible inside views) -->
+    <div class="nav-back-bar" id="navBackBar" style="display: none;">
+      <button class="btn-secondary" id="backToMenuBtn">← Back to Main Menu</button>
+    </div>
+
+    <!-- Main Menu Homepage View -->
+    <div id="menuView" class="menu-container">
+      <div class="menu-button-card menu-card-log" id="navLogMealBtn">
+        <div class="menu-icon-wrapper">
+          <svg viewBox="0 0 24 24">
+            <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/>
+          </svg>
+        </div>
+        <h2>Log New Meal</h2>
+        <p>Record a meal, snack, or dessert with quantity and custom notes</p>
+      </div>
+
+      <div class="menu-button-card menu-card-history" id="navMealLogsBtn">
+        <div class="menu-icon-wrapper">
+          <svg viewBox="0 0 24 24">
+            <path d="M3 13h2v-2H3v2zm0 4h2v-2H3v2zm0-8h2V7H3v2zm4 4h14v-2H7v2zm0 4h14v-2H7v2zM7 7v2h14V7H7z"/>
+          </svg>
+        </div>
+        <h2>Meal Logs</h2>
+        <p>View, filter, sort, and export your recorded meal history</p>
+      </div>
+    </div>
+
+    <!-- Form Card Section -->
     <div class="card card-form" id="formCard" style="display: none;">
       <div class="card-title" id="formTitle">✏️ Log New Meal</div>
       <form id="mealForm">
@@ -587,7 +696,8 @@
       </form>
     </div>
 
-    <div class="card card-data">
+    <!-- Data Table Card Section -->
+    <div class="card card-data" id="dataCard" style="display: none;">
       <div class="card-title">📊 Meal Logs & History</div>
       
       <div class="controls-bar">
@@ -714,6 +824,42 @@
     let authMode = 'login';
     let lastModifiedId = null;
 
+    // View Navigation Logic
+    const menuView = document.getElementById('menuView');
+    const formCard = document.getElementById('formCard');
+    const dataCard = document.getElementById('dataCard');
+    const navBackBar = document.getElementById('navBackBar');
+
+    function showMenuView() {
+      menuView.style.display = 'grid';
+      formCard.style.display = 'none';
+      dataCard.style.display = 'none';
+      navBackBar.style.display = 'none';
+    }
+
+    function showLogMealView() {
+      if (!currentUser) {
+        alert("Please log in to add or edit meal records.");
+        return;
+      }
+      menuView.style.display = 'none';
+      formCard.style.display = 'block';
+      dataCard.style.display = 'none';
+      navBackBar.style.display = 'flex';
+    }
+
+    function showMealLogsView() {
+      menuView.style.display = 'none';
+      formCard.style.display = 'none';
+      dataCard.style.display = 'block';
+      navBackBar.style.display = 'flex';
+      renderTable();
+    }
+
+    document.getElementById('navLogMealBtn').addEventListener('click', showLogMealView);
+    document.getElementById('navMealLogsBtn').addEventListener('click', showMealLogsView);
+    document.getElementById('backToMenuBtn').addEventListener('click', showMenuView);
+
     // Offline & Network Status UI Indicators
     function updateOnlineStatusUI() {
       const userStatus = document.getElementById('userStatus');
@@ -748,7 +894,6 @@
       const openAuthBtn = document.getElementById('openAuthBtn');
       const createUserBtn = document.getElementById('createUserBtn');
       const logoutBtn = document.getElementById('logoutBtn');
-      const formCard = document.getElementById('formCard');
       const actionsHeader = document.getElementById('actionsHeader');
 
       updateOnlineStatusUI();
@@ -757,14 +902,15 @@
         openAuthBtn.style.display = 'none';
         createUserBtn.style.display = 'inline-block';
         logoutBtn.style.display = 'inline-block';
-        formCard.style.display = 'block';
         if (actionsHeader) actionsHeader.style.display = 'table-cell';
       } else {
         openAuthBtn.style.display = 'inline-block';
         createUserBtn.style.display = 'none';
         logoutBtn.style.display = 'none';
-        formCard.style.display = 'none';
         if (actionsHeader) actionsHeader.style.display = 'none';
+        if (formCard.style.display === 'block') {
+          showMenuView();
+        }
       }
       renderTable();
     });
@@ -971,6 +1117,7 @@
           lastModifiedId = docRef.id;
         }
         resetForm();
+        showMealLogsView();
       } catch (err) {
         alert("Error saving document: " + err.message);
       }
@@ -1010,6 +1157,7 @@
       document.getElementById('submitBtn').textContent = 'Save Changes';
       document.getElementById('cancelBtn').style.display = 'block';
 
+      showLogMealView();
       window.scrollTo({ top: 0, behavior: 'smooth' });
     };
 
@@ -1124,7 +1272,11 @@
       setCurrentDateTimeInput();
     }
 
-    document.getElementById('cancelBtn').addEventListener('click', resetForm);
+    document.getElementById('cancelBtn').addEventListener('click', () => {
+      resetForm();
+      showMenuView();
+    });
+    
     document.getElementById('filterCategory').addEventListener('change', renderTable);
     document.getElementById('filterDate').addEventListener('change', renderTable);
     document.getElementById('clearDateBtn').addEventListener('click', () => {
@@ -1139,6 +1291,7 @@
     }
 
     setCurrentDateTimeInput();
+    showMenuView();
   </script>
 </body>
 </html>
