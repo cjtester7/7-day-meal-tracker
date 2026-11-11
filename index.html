@@ -1,9 +1,10 @@
 <!DOCTYPE html>
+<!-- 7-Day Meal Tracker v3.4 — per-user item suggestions (records tagged with uid) -->
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>7-Day Meal Tracker (v3.3)</title>
+  <title>7-Day Meal Tracker (v3.4)</title>
   
   <!-- Web App Manifest (Inline Data URI) -->
   <link rel="manifest" href='data:application/manifest+json,{"name":"7-Day Meal Tracker","short_name":"MealTracker","start_url":"/","display":"standalone","background_color":"#f1f5f9","theme_color":"#2563eb"}' />
@@ -627,7 +628,7 @@
   <div class="container">
     <header>
       <div class="header-title">
-        <h1>7-Day Meal Tracker <span class="version-badge">v3.3</span></h1>
+        <h1>7-Day Meal Tracker <span class="version-badge">v3.4</span></h1>
         <p>Log and organize your meals on desktop & mobile</p>
       </div>
 
@@ -819,6 +820,7 @@
   </script>
 
   <script type="module">
+    // 7-Day Meal Tracker v3.4
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
     import { 
       getFirestore, 
@@ -958,6 +960,7 @@
           showMenuView();
         }
       }
+      updateItemSuggestions();
       renderTable();
     });
 
@@ -985,7 +988,14 @@
       const uniqueItems = [];
       const seenItems = new Set();
 
-      meals.forEach(m => {
+      // v3.4: suggestions come only from the signed-in user's own records
+      if (!currentUser) {
+        datalist.innerHTML = '';
+        return;
+      }
+      const myMeals = meals.filter(m => m.uid === currentUser.uid);
+
+      myMeals.forEach(m => {
         if (m.itemName && m.itemName.trim() !== '') {
           const trimmed = m.itemName.trim();
           const lower = trimmed.toLowerCase();
@@ -1122,10 +1132,14 @@
       try {
         if (editId) {
           const docRef = doc(db, "meals", editId);
-          await updateDoc(docRef, { dateTime, category, itemName, quantity, unit, notes });
+          const updates = { dateTime, category, itemName, quantity, unit, notes };
+          // v3.4: untagged (pre-v3.4) records are claimed by the user who edits them
+          const existing = meals.find(m => m.id === editId);
+          if (existing && !existing.uid) updates.uid = currentUser.uid;
+          await updateDoc(docRef, updates);
           lastModifiedId = editId;
         } else {
-          const docRef = await addDoc(mealsCollection, { dateTime, category, itemName, quantity, unit, notes });
+          const docRef = await addDoc(mealsCollection, { dateTime, category, itemName, quantity, unit, notes, uid: currentUser.uid });
           lastModifiedId = docRef.id;
         }
         resetForm();
