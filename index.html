@@ -1,9 +1,10 @@
 <!DOCTYPE html>
+<!-- 7-Day Meal Tracker v3.4 — per-user item suggestions (records tagged with uid) -->
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>7-Day Meal Tracker (v3.2)</title>
+  <title>7-Day Meal Tracker (v3.4)</title>
   
   <!-- Web App Manifest (Inline Data URI) -->
   <link rel="manifest" href='data:application/manifest+json,{"name":"7-Day Meal Tracker","short_name":"MealTracker","start_url":"/","display":"standalone","background_color":"#f1f5f9","theme_color":"#2563eb"}' />
@@ -627,7 +628,7 @@
   <div class="container">
     <header>
       <div class="header-title">
-        <h1>7-Day Meal Tracker <span class="version-badge">v3.2</span></h1>
+        <h1>7-Day Meal Tracker <span class="version-badge">v3.4</span></h1>
         <p>Log and organize your meals on desktop & mobile</p>
       </div>
 
@@ -691,19 +692,17 @@
           </div>
 
           <div class="form-group">
-            <label for="itemSelect">Food / Item Name</label>
+            <label for="itemName">Food / Item Name</label>
             <div class="food-input-container">
-              <select id="itemSelect" required>
-                <option value="">-- Choose Item --</option>
-                <option value="__NEW__">+ Add New Item...</option>
-              </select>
               <input 
                 type="text" 
                 id="itemName" 
-                placeholder="Enter new food item name..." 
-                style="display: none;" 
+                placeholder="Type or search food item..." 
+                list="itemSuggestions" 
+                required 
                 autocomplete="off" 
               />
+              <datalist id="itemSuggestions"></datalist>
             </div>
           </div>
 
@@ -821,6 +820,7 @@
   </script>
 
   <script type="module">
+    // 7-Day Meal Tracker v3.4
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
     import { 
       getFirestore, 
@@ -960,6 +960,7 @@
           showMenuView();
         }
       }
+      updateItemSuggestions();
       renderTable();
     });
 
@@ -974,21 +975,27 @@
         id: doc.id,
         ...doc.data()
       }));
-      updateItemSelectOptions();
+      updateItemSuggestions();
       renderTable();
     }, (error) => {
       console.error("Firestore snapshot listener error:", error);
     });
 
-    function updateItemSelectOptions() {
-      const itemSelect = document.getElementById('itemSelect');
-      if (!itemSelect) return;
+    function updateItemSuggestions() {
+      const datalist = document.getElementById('itemSuggestions');
+      if (!datalist) return;
 
-      const currentValue = itemSelect.value;
       const uniqueItems = [];
       const seenItems = new Set();
 
-      meals.forEach(m => {
+      // v3.4: suggestions come only from the signed-in user's own records
+      if (!currentUser) {
+        datalist.innerHTML = '';
+        return;
+      }
+      const myMeals = meals.filter(m => m.uid === currentUser.uid);
+
+      myMeals.forEach(m => {
         if (m.itemName && m.itemName.trim() !== '') {
           const trimmed = m.itemName.trim();
           const lower = trimmed.toLowerCase();
@@ -1000,38 +1007,8 @@
       });
 
       uniqueItems.sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }));
-
-      let optionsHtml = `<option value="">-- Choose Item --</option>`;
-      optionsHtml += `<option value="__NEW__">+ Add New Item...</option>`;
-
-      if (uniqueItems.length > 0) {
-        optionsHtml += `<optgroup label="Logged Items">`;
-        uniqueItems.forEach(item => {
-          optionsHtml += `<option value="${escapeHtml(item)}">${escapeHtml(item)}</option>`;
-        });
-        optionsHtml += `</optgroup>`;
-      }
-
-      itemSelect.innerHTML = optionsHtml;
-
-      if (currentValue && (seenItems.has(currentValue.toLowerCase()) || currentValue === '__NEW__')) {
-        itemSelect.value = currentValue;
-      }
+      datalist.innerHTML = uniqueItems.map(item => `<option value="${escapeHtml(item)}">`).join('');
     }
-
-    document.getElementById('itemSelect').addEventListener('change', function() {
-      const itemNameInput = document.getElementById('itemName');
-      if (this.value === '__NEW__') {
-        itemNameInput.style.display = 'block';
-        itemNameInput.value = '';
-        itemNameInput.required = true;
-        itemNameInput.focus();
-      } else {
-        itemNameInput.style.display = 'none';
-        itemNameInput.required = false;
-        itemNameInput.value = this.value;
-      }
-    });
 
     function getFilteredAndSortedMeals() {
       const filterCategory = document.getElementById('filterCategory').value;
@@ -1141,13 +1118,10 @@
       const editId = document.getElementById('editId').value;
       const dateTime = document.getElementById('dateTime').value;
       const category = document.getElementById('category').value;
-      const itemSelectVal = document.getElementById('itemSelect').value;
-      const itemNameInput = document.getElementById('itemName').value.trim();
-      
-      const itemName = (itemSelectVal === '__NEW__') ? itemNameInput : itemSelectVal;
+      const itemName = document.getElementById('itemName').value.trim();
 
       if (!itemName) {
-        alert("Please select or enter a valid food item name.");
+        alert("Please enter a valid food item name.");
         return;
       }
 
@@ -1158,10 +1132,14 @@
       try {
         if (editId) {
           const docRef = doc(db, "meals", editId);
-          await updateDoc(docRef, { dateTime, category, itemName, quantity, unit, notes });
+          const updates = { dateTime, category, itemName, quantity, unit, notes };
+          // v3.4: untagged (pre-v3.4) records are claimed by the user who edits them
+          const existing = meals.find(m => m.id === editId);
+          if (existing && !existing.uid) updates.uid = currentUser.uid;
+          await updateDoc(docRef, updates);
           lastModifiedId = editId;
         } else {
-          const docRef = await addDoc(mealsCollection, { dateTime, category, itemName, quantity, unit, notes });
+          const docRef = await addDoc(mealsCollection, { dateTime, category, itemName, quantity, unit, notes, uid: currentUser.uid });
           lastModifiedId = docRef.id;
         }
         resetForm();
@@ -1179,24 +1157,7 @@
       document.getElementById('editId').value = meal.id;
       document.getElementById('dateTime').value = meal.dateTime;
       document.getElementById('category').value = meal.category;
-      
-      const itemSelect = document.getElementById('itemSelect');
-      const itemNameInput = document.getElementById('itemName');
-
-      const optionExists = Array.from(itemSelect.options).some(opt => opt.value === meal.itemName);
-
-      if (optionExists) {
-        itemSelect.value = meal.itemName;
-        itemNameInput.style.display = 'none';
-        itemNameInput.required = false;
-        itemNameInput.value = meal.itemName;
-      } else {
-        itemSelect.value = '__NEW__';
-        itemNameInput.style.display = 'block';
-        itemNameInput.required = true;
-        itemNameInput.value = meal.itemName || '';
-      }
-
+      document.getElementById('itemName').value = meal.itemName || '';
       document.getElementById('quantity').value = meal.quantity || '';
       document.getElementById('unit').value = meal.unit || '';
       document.getElementById('notes').value = meal.notes || '';
@@ -1310,13 +1271,6 @@
       document.getElementById('formTitle').textContent = '✏️ Log New Meal';
       document.getElementById('submitBtn').textContent = 'Add Meal Entry';
       document.getElementById('cancelBtn').style.display = 'none';
-      
-      const itemSelect = document.getElementById('itemSelect');
-      const itemNameInput = document.getElementById('itemName');
-      itemSelect.value = '';
-      itemNameInput.style.display = 'none';
-      itemNameInput.required = false;
-
       setCurrentDateTimeInput();
     }
 
