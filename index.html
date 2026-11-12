@@ -1,13 +1,30 @@
 <!DOCTYPE html>
-<!-- 7-Day Meal Tracker v3.5 — offline sync (instant local saves, pending-sync tracking, offline app shell via sw.js) -->
+<!-- 7-Day Meal Tracker v3.6 — relative paths (works in a GitHub Pages project folder) + automatic update check with refresh banner -->
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>7-Day Meal Tracker (v3.5)</title>
+  <title>7-Day Meal Tracker (v3.6)</title>
   
-  <!-- Web App Manifest (Inline Data URI) -->
-  <link rel="manifest" href='data:application/manifest+json,{"name":"7-Day Meal Tracker","short_name":"MealTracker","start_url":"/","display":"standalone","background_color":"#f1f5f9","theme_color":"#2563eb"}' />
+  <!-- Web App Manifest — v3.6: generated at load so start_url/scope point to this app's folder
+       (e.g. https://yourname.github.io/repo-name/), not the domain root -->
+  <link rel="manifest" id="appManifest" />
+  <script>
+    (function () {
+      var base = new URL('./', location.href).href;
+      var manifest = {
+        name: '7-Day Meal Tracker',
+        short_name: 'MealTracker',
+        start_url: base,
+        scope: base,
+        display: 'standalone',
+        background_color: '#f1f5f9',
+        theme_color: '#2563eb'
+      };
+      document.getElementById('appManifest').href =
+        'data:application/manifest+json,' + encodeURIComponent(JSON.stringify(manifest));
+    })();
+  </script>
   <meta name="theme-color" content="#2563eb" />
 
   <style>
@@ -529,6 +546,37 @@
       vertical-align: middle;
     }
 
+    /* v3.6: update-available banner */
+    .update-banner {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      z-index: 2500;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      flex-wrap: wrap;
+      padding: 12px 16px;
+      background: var(--primary);
+      color: #ffffff;
+      font-size: 0.9rem;
+      font-weight: 600;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    }
+
+    .update-banner.show { display: flex; }
+
+    .update-banner button {
+      background: #ffffff;
+      color: var(--primary);
+      padding: 8px 14px;
+      font-size: 0.85rem;
+    }
+
+    .update-banner button:hover { background: #eff6ff; }
+
     .toast {
       position: fixed;
       left: 50%;
@@ -675,7 +723,7 @@
   <div class="container">
     <header>
       <div class="header-title">
-        <h1>7-Day Meal Tracker <span class="version-badge">v3.5</span></h1>
+        <h1>7-Day Meal Tracker <span class="version-badge">v3.6</span></h1>
         <p>Log and organize your meals on desktop & mobile</p>
       </div>
 
@@ -835,6 +883,11 @@
     </div>
   </div>
 
+  <div class="update-banner" id="updateBanner">
+    <span>A new version of the app is available.</span>
+    <button type="button" id="updateRefreshBtn">Tap to refresh</button>
+  </div>
+
   <div class="toast" id="toast"></div>
 
   <div class="modal" id="authModal">
@@ -858,18 +911,69 @@
   </div>
 
   <script>
-    // Service Worker Registration for Offline App Shell Caching
+    // v3.6: Service Worker registration with automatic update checks.
+    // './sw.js' is relative, so it loads from this app's folder (works on GitHub Pages project sites).
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
-        navigator.serviceWorker.register('/sw.js')
-          .then(reg => console.log('Service Worker registered successfully:', reg.scope))
+        const banner = document.getElementById('updateBanner');
+        const refreshBtn = document.getElementById('updateRefreshBtn');
+        let updateRequested = false;  // set only when the user taps "Tap to refresh"
+        let reloading = false;
+
+        function showUpdateBanner(worker) {
+          banner.classList.add('show');
+          refreshBtn.onclick = () => {
+            refreshBtn.disabled = true;
+            refreshBtn.textContent = 'Updating…';
+            updateRequested = true;
+            worker.postMessage({ type: 'SKIP_WAITING' });
+          };
+        }
+
+        // Reload once the new worker takes over — only after the user asked for the update
+        // (the very first install also changes the controller, but shouldn't reload the page)
+        navigator.serviceWorker.addEventListener('controllerchange', () => {
+          if (!updateRequested || reloading) return;
+          reloading = true;
+          window.location.reload();
+        });
+
+        navigator.serviceWorker.register('./sw.js', { updateViaCache: 'none' })
+          .then(reg => {
+            console.log('Service Worker registered:', reg.scope);
+
+            // An update already downloaded and waiting
+            if (reg.waiting && navigator.serviceWorker.controller) {
+              showUpdateBanner(reg.waiting);
+            }
+
+            // An update found while the app is open
+            reg.addEventListener('updatefound', () => {
+              const newWorker = reg.installing;
+              if (!newWorker) return;
+              newWorker.addEventListener('statechange', () => {
+                if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                  showUpdateBanner(newWorker);
+                }
+              });
+            });
+
+            // Check for a new version each time the app opens or comes back to the foreground
+            reg.update().catch(() => {});
+            document.addEventListener('visibilitychange', () => {
+              if (document.visibilityState === 'visible' && navigator.onLine) {
+                reg.update().catch(() => {});
+              }
+            });
+            window.addEventListener('online', () => reg.update().catch(() => {}));
+          })
           .catch(err => console.error('Service Worker registration failed:', err));
       });
     }
   </script>
 
   <script type="module">
-    // 7-Day Meal Tracker v3.5
+    // 7-Day Meal Tracker v3.6
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
     import { 
  initializeFirestore,
