@@ -1,10 +1,10 @@
 <!DOCTYPE html>
-<!-- 7-Day Meal Tracker v3.4 — per-user item suggestions (records tagged with uid) -->
+<!-- 7-Day Meal Tracker v3.5 — offline sync (instant local saves, pending-sync tracking, offline app shell via sw.js) -->
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>7-Day Meal Tracker (v3.4)</title>
+  <title>7-Day Meal Tracker (v3.5)</title>
   
   <!-- Web App Manifest (Inline Data URI) -->
   <link rel="manifest" href='data:application/manifest+json,{"name":"7-Day Meal Tracker","short_name":"MealTracker","start_url":"/","display":"standalone","background_color":"#f1f5f9","theme_color":"#2563eb"}' />
@@ -504,6 +504,53 @@
     .cat-dessert   { background: #fce7f3; color: #9d174d; border: 1px solid #fbcfe8; }
     .cat-snacks    { background: #dcfce7; color: #166534; border: 1px solid #bbf7d0; }
 
+    /* v3.5: sync status styles */
+    .user-status.sync-pending {
+      color: #1e40af;
+      background-color: #dbeafe;
+      padding: 4px 8px;
+      border-radius: 6px;
+      border: 1px solid #bfdbfe;
+    }
+
+    .sync-ok { color: var(--success); font-weight: 600; }
+
+    .sync-badge {
+      display: inline-block;
+      margin-left: 8px;
+      padding: 1px 8px;
+      border-radius: 10px;
+      font-size: 0.7rem;
+      font-weight: 700;
+      background: #fef3c7;
+      color: #92400e;
+      border: 1px solid #fde68a;
+      white-space: nowrap;
+      vertical-align: middle;
+    }
+
+    .toast {
+      position: fixed;
+      left: 50%;
+      bottom: 24px;
+      transform: translateX(-50%) translateY(20px);
+      background: #0f172a;
+      color: #ffffff;
+      padding: 12px 18px;
+      border-radius: 10px;
+      font-size: 0.9rem;
+      font-weight: 500;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.25s, transform 0.25s;
+      z-index: 2000;
+      max-width: calc(100% - 32px);
+      text-align: center;
+    }
+
+    .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
     .empty-state { text-align: center; padding: 28px 16px; color: var(--text-muted); font-weight: 500; }
 
     .modal {
@@ -628,7 +675,7 @@
   <div class="container">
     <header>
       <div class="header-title">
-        <h1>7-Day Meal Tracker <span class="version-badge">v3.4</span></h1>
+        <h1>7-Day Meal Tracker <span class="version-badge">v3.5</span></h1>
         <p>Log and organize your meals on desktop & mobile</p>
       </div>
 
@@ -788,6 +835,8 @@
     </div>
   </div>
 
+  <div class="toast" id="toast"></div>
+
   <div class="modal" id="authModal">
     <div class="modal-content">
       <div class="modal-header">
@@ -820,13 +869,15 @@
   </script>
 
   <script type="module">
-    // 7-Day Meal Tracker v3.4
+    // 7-Day Meal Tracker v3.5
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
     import { 
-      getFirestore, 
-      enableMultiTabIndexedDbPersistence,
+ initializeFirestore,
+      persistentLocalCache,
+      persistentMultipleTabManager,
+      waitForPendingWrites,
       collection, 
-      addDoc, 
+      setDoc, 
       updateDoc, 
       deleteDoc, 
       doc, 
@@ -851,16 +902,19 @@
     };
 
     const app = initializeApp(firebaseConfig);
-    const db = getFirestore(app);
 
-    // Enable Multi-Tab Firestore Offline Persistence & Data Syncing
-    enableMultiTabIndexedDbPersistence(db).catch((err) => {
-      if (err.code === 'failed-precondition') {
-        console.warn('Firestore offline persistence failed: Multiple tabs open in unsupported mode.');
-      } else if (err.code === 'unimplemented') {
-        console.warn('Firestore offline persistence is not supported by this browser.');
-      }
-    });
+    // v3.5: Persistent offline cache (IndexedDB), shared across tabs.
+    // Reads come from the local cache when offline; writes are queued and
+    // sent to Firestore automatically once the connection returns.
+    let db;
+    try {
+      db = initializeFirestore(app, {
+        localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() })
+      });
+    } catch (err) {
+      console.warn('Persistent offline cache unavailable, using memory cache:', err);
+      db = initializeFirestore(app, {});
+    }
 
     const auth = getAuth(app);
     const mealsCollection = collection(db, "meals");
@@ -871,6 +925,46 @@
     let currentUser = null;
     let authMode = 'login';
     let lastModifiedId = null;
+
+    // v3.5: offline sync tracking
+    let pendingOps = 0;        // writes made in this tab not yet confirmed by the server
+    let pendingDocs = 0;       // records in the cache with unsynced local changes
+    let syncedToastArmed = false;
+
+    function getPendingCount() {
+      return Math.max(pendingOps, pendingDocs);
+    }
+
+    function showToast(message) {
+      const toast = document.getElementById('toast');
+      toast.textContent = message;
+      toast.classList.add('show');
+      clearTimeout(showToast._t);
+      showToast._t = setTimeout(() => toast.classList.remove('show'), 3500);
+    }
+
+    // Writes resolve only when the server confirms them, so they're not awaited.
+    // The local cache updates the UI instantly, online or offline.
+    function trackWrite(promise, actionLabel) {
+      pendingOps++;
+      updateOnlineStatusUI();
+      promise
+        .catch(err => {
+          console.error(`Error ${actionLabel} record:`, err);
+          alert(`Error ${actionLabel} record: ${err.message}`);
+        })
+        .finally(() => {
+          pendingOps = Math.max(0, pendingOps - 1);
+          updateOnlineStatusUI();
+        });
+    }
+
+    function flashRow(id) {
+      lastModifiedId = id;
+      setTimeout(() => {
+        if (lastModifiedId === id) lastModifiedId = null;
+      }, 2600);
+    }
 
     // View Navigation Logic
     const menuView = document.getElementById('menuView');
@@ -911,30 +1005,54 @@
     // Offline & Network Status UI Indicators
     function updateOnlineStatusUI() {
       const userStatus = document.getElementById('userStatus');
+      const pending = getPendingCount();
+      const pendingText = `${pending} change${pending === 1 ? '' : 's'}`;
+      const email = currentUser ? escapeHtml(currentUser.email) : '';
+
+      userStatus.classList.remove('offline-warning', 'sync-pending');
+
       if (!navigator.onLine) {
         userStatus.classList.add('offline-warning');
         if (currentUser) {
-          userStatus.innerHTML = `⚠️ <strong>Offline Mode</strong> (${currentUser.email} - changes will sync when online)`;
+          userStatus.innerHTML = pending > 0
+            ? `⚠️ <strong>Offline</strong> · ${email} · ${pendingText} waiting to sync`
+            : `⚠️ <strong>Offline</strong> · ${email} · changes will sync when online`;
         } else {
           userStatus.innerHTML = `⚠️ <strong>Offline Mode</strong> (Read-Only)`;
         }
+      } else if (currentUser && pending > 0) {
+        userStatus.classList.add('sync-pending');
+        userStatus.innerHTML = `🔄 Syncing ${pendingText}… · ${email}`;
+      } else if (currentUser) {
+        userStatus.innerHTML = `Logged in: ${email} · <span class="sync-ok">✓ Synced</span>`;
       } else {
-        userStatus.classList.remove('offline-warning');
-        if (currentUser) {
-          userStatus.textContent = `Logged in: ${currentUser.email}`;
-        } else {
-          userStatus.textContent = 'Read-Only Mode';
-        }
+        userStatus.textContent = 'Read-Only Mode';
       }
+    }
+
+    function notifyWhenSynced() {
+      if (getPendingCount() === 0) return;
+      syncedToastArmed = true;
+      waitForPendingWrites(db)
+        .then(() => {
+          if (syncedToastArmed && navigator.onLine) {
+            syncedToastArmed = false;
+            showToast('✓ All offline changes synced');
+          }
+          updateOnlineStatusUI();
+        })
+        .catch(err => console.warn('waitForPendingWrites failed:', err));
     }
 
     window.addEventListener('online', () => {
       updateOnlineStatusUI();
-      console.log('Network connectivity restored. Firestore queuing background sync...');
+      showToast('Back online. Syncing changes…');
+      notifyWhenSynced();
     });
 
     window.addEventListener('offline', () => {
       updateOnlineStatusUI();
+      showToast('You\'re offline. New entries will be saved on this device and synced later.');
     });
 
     onAuthStateChanged(auth, (user) => {
@@ -970,13 +1088,16 @@
       document.getElementById('dateTime').value = now.toISOString().slice(0, 16);
     }
 
-    onSnapshot(mealsCollection, (snapshot) => {
-      meals = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
+    onSnapshot(mealsCollection, { includeMetadataChanges: true }, (snapshot) => {
+      meals = snapshot.docs.map(d => ({
+        id: d.id,
+        ...d.data(),
+        _pending: d.metadata.hasPendingWrites
       }));
+      pendingDocs = meals.filter(m => m._pending).length;
       updateItemSuggestions();
       renderTable();
+      updateOnlineStatusUI();
     }, (error) => {
       console.error("Firestore snapshot listener error:", error);
     });
@@ -1080,7 +1201,7 @@
           <tr id="row-${m.id}" class="${isHighlighted}">
             <td data-label="Date & Time">${formattedDate}</td>
             <td data-label="Category"><span class="category-badge ${badgeClass}">${escapeHtml(m.category || '')}</span></td>
-            <td data-label="Item Name"><strong>${escapeHtml(m.itemName || '')}</strong></td>
+            <td data-label="Item Name"><strong>${escapeHtml(m.itemName || '')}</strong>${m._pending ? '<span class="sync-badge" title="Saved on this device, waiting to sync">⏳ Pending sync</span>' : ''}</td>
             <td data-label="Quantity">${m.quantity !== '' && m.quantity !== null && m.quantity !== undefined ? m.quantity : '-'}</td>
             <td data-label="Unit">${m.unit ? escapeHtml(m.unit) : '-'}</td>
             <td data-label="Notes" class="notes-cell">${m.notes ? escapeHtml(m.notes) : '-'}</td>
@@ -1130,17 +1251,23 @@
       const notes = document.getElementById('notes').value.trim();
 
       try {
+        // v3.5: writes apply to the local cache immediately and sync in the background
         if (editId) {
           const docRef = doc(db, "meals", editId);
           const updates = { dateTime, category, itemName, quantity, unit, notes };
           // v3.4: untagged (pre-v3.4) records are claimed by the user who edits them
           const existing = meals.find(m => m.id === editId);
           if (existing && !existing.uid) updates.uid = currentUser.uid;
-          await updateDoc(docRef, updates);
-          lastModifiedId = editId;
+          trackWrite(updateDoc(docRef, updates), 'updating');
+          flashRow(editId);
         } else {
-          const docRef = await addDoc(mealsCollection, { dateTime, category, itemName, quantity, unit, notes, uid: currentUser.uid });
-          lastModifiedId = docRef.id;
+          const newRef = doc(mealsCollection); // ID generated locally, works offline
+          trackWrite(setDoc(newRef, { dateTime, category, itemName, quantity, unit, notes, uid: currentUser.uid }), 'saving');
+          flashRow(newRef.id);
+        }
+        if (!navigator.onLine) {
+          showToast('Saved offline. Will sync when you reconnect.');
+          syncedToastArmed = true;
         }
         resetForm();
         showMealLogsView();
@@ -1174,7 +1301,11 @@
       if (!currentUser) return;
       if (confirm('Are you sure you want to delete this meal entry?')) {
         try {
-          await deleteDoc(doc(db, "meals", id));
+          trackWrite(deleteDoc(doc(db, "meals", id)), 'deleting');
+          if (!navigator.onLine) {
+            showToast('Deleted offline. Will sync when you reconnect.');
+            syncedToastArmed = true;
+          }
         } catch (err) {
           alert("Error deleting record: " + err.message);
         }
@@ -1294,6 +1425,7 @@
 
     setCurrentDateTimeInput();
     showMenuView();
+    updateOnlineStatusUI();
   </script>
 </body>
 </html>
